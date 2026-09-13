@@ -225,6 +225,32 @@ without running the package's Home Assistant imports.
 
 Home Assistant itself requires Python 3.13+; the test suite above does not.
 
+## Branches and releases
+
+HACS installs from GitHub **releases**, not from branches. If a repository has
+no releases it falls back to the default branch, which is why the branch layout
+and the release process do separate jobs:
+
+| Branch | Role |
+|---|---|
+| `main` | Stable. Tagged and released from here. |
+| `develop` | Work in progress. Never installed directly by anyone. |
+
+Cutting a release:
+
+1. Merge `develop` into `main`
+2. Bump `"version"` in `custom_components/controlmyspa/manifest.json`
+3. Tag it to match, e.g. `git tag -a v0.2.0 -m "..."` and push the tag
+4. Create a GitHub release from that tag
+
+**The manifest version and the tag must match.** HACS compares them, and a
+mismatch makes updates behave unpredictably.
+
+For a beta, tag a pre-release version (`v0.2.0-beta.1`) and tick
+**"This is a pre-release"** when creating the GitHub release. Only users who
+have enabled **Show beta versions** on this repository in HACS will be offered
+it; everyone else stays on the latest stable release.
+
 ## License
 
 MIT -- see [LICENSE](LICENSE). Use it, change it, ship it; just keep the
