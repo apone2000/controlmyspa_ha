@@ -154,13 +154,3 @@ directly and no test contacts the live service. `tests/conftest.py` loads them
 without running the package's Home Assistant imports.
 
 Home Assistant itself requires Python 3.13+; the test suite above does not.
-
-## Related projects
-
-No code here is derived from any of these; the API surface was mapped by
-probing the live service after the old `/idm/tokenEndpoint` discovery route was
-removed. Listed because they are what searches currently turn up, and both were
-written against the API that no longer exists:
-
-- [`mikakoivisto/controlmyspa-ha-mqtt`](https://github.com/mikakoivisto/controlmyspa-ha-mqtt)
-- [`arska/controlmyspa`](https://github.com/arska/controlmyspa)
