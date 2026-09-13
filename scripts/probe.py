@@ -71,11 +71,14 @@ async def main() -> int:
             return 1
 
     state = models.SpaState.from_api(raw)
-    unit = "C" if state.celsius else "F"
+    unit = "F" if state.fahrenheit else "C"
 
     print(f"\nSpa {state.serial_number or state.spa_id}")
     print(f"  online            {state.online}")
-    print(f"  available         {state.available} (stale={state.is_stale})")
+    print(
+        f"  available         {state.available} "
+        f"(stale={state.is_stale}, expired={state.is_expired})"
+    )
     print(f"  water temp        {state.current_temp} {unit}")
     print(f"  target temp       {state.target_temp} {unit}")
     print(f"  ambient temp      {state.ambient_temp} {unit}")
@@ -87,6 +90,7 @@ async def main() -> int:
     print(f"  controller        {state.controller_version}")
     print(f"  light             {state.light_on}")
     print(f"  last uplink       {state.uplink_timestamp}")
+    print(f"  reading expires   {state.stale_timestamp}")
 
     if args.dump:
         Path(args.dump).write_text(json.dumps(raw, indent=2, default=str))

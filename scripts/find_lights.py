@@ -117,7 +117,9 @@ async def main() -> int:
         spa_id = spa.get("_id") or ""
         broker = (spa.get("gatewayBroker") or {}).get("brokerId")
         # brokerId expands to a full broker record rather than an identifier.
-        broker_id = broker.get("_id", "") if isinstance(broker, dict) else (broker or "")
+        broker_id = (
+            broker.get("_id", "") if isinstance(broker, dict) else (broker or "")
+        )
         if isinstance(broker, dict):
             print("=== gateway broker (MQTT push channel) ===")
             print(
