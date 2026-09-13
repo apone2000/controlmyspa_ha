@@ -12,32 +12,102 @@ and declares no extra Python dependencies.
 > Setting the temperature and controlling the light are not implemented yet —
 > see [Write support](#write-support).
 
+## Requirements
+
+- Home Assistant 2025.2 or newer
+- A ControlMySpa account (the same one the mobile app uses)
+- Internet access from Home Assistant — this is a cloud API, not a local one
+
+No Python dependencies. The integration uses only what Home Assistant already
+ships, so there is nothing to install and nothing to conflict.
+
 ## Install
 
-### HACS
+### Via HACS
 
-1. HACS → ⋮ → **Custom repositories**
-2. Add `https://github.com/apone2000/controlmyspa_mqtt_ha` as an **Integration**
-3. Install **ControlMySpa**, then restart Home Assistant
+1. **HACS → ⋮ (top right) → Custom repositories**
+2. Paste `https://github.com/apone2000/controlmyspa_mqtt_ha`, type **Integration**, **Add**
+3. Find **ControlMySpa** in the HACS list and click **Download**
+4. **Restart Home Assistant** (Settings → System → Restart)
 
-### Manual
+### Manually
 
-Copy `custom_components/controlmyspa` into your Home Assistant `config/custom_components/`
-directory and restart.
+Copy the `custom_components/controlmyspa` folder — the folder itself, not its
+contents — into your Home Assistant configuration directory, so that you end up
+with exactly this:
+
+```
+config/
+└── custom_components/
+    └── controlmyspa/
+        ├── manifest.json
+        ├── __init__.py
+        ├── api.py
+        └── ...
+```
+
+Create `custom_components` first if it does not exist. Check that
+`config/custom_components/controlmyspa/manifest.json` is present before going
+further: a nested `controlmyspa/controlmyspa/`, or the files sitting loose in
+`custom_components/`, are the two usual slips and both fail silently.
+
+On Home Assistant OS the configuration directory is not on the machine you are
+copying from, so you need one of the **Samba share**, **Advanced SSH & Web
+Terminal**, or **File editor** add-ons to reach it. With Samba mounted, it is a
+drag; with SSH it is one command:
+
+```bash
+scp -r custom_components/controlmyspa root@<your-ha-ip>:/config/custom_components/
+```
+
+Then **restart Home Assistant**.
+
+> **A restart is required, not a reload.** Home Assistant imports custom
+> integrations at startup, so a folder that was not there when it booted is
+> invisible to it. This applies to *updates* as well: after copying changed
+> files, the integration's Reload button re-runs setup against the module
+> Python still has cached in memory, so your changes appear to do nothing.
+> Always restart.
 
 ## Set up
 
 **Settings → Devices & Services → Add Integration → ControlMySpa**, then sign in
 with the same email and password you use in the ControlMySpa app.
 
-Credentials are stored in Home Assistant's encrypted config entry store. If the
-password is ever rejected later, Home Assistant prompts you to re-authenticate
-rather than silently going offline.
+Credentials are verified before the entry is created, so a wrong password fails
+immediately with a clear message rather than producing a broken device. They are
+stored in Home Assistant's encrypted config entry store, and if the password is
+ever rejected later Home Assistant prompts you to re-authenticate rather than
+silently going offline.
 
-The polling interval defaults to 30 seconds and can be changed under the
-integration's **Configure** option (10–600 seconds). The cloud service is not a
-local device — polling every few seconds gains little and loads someone else's
-API.
+The polling interval defaults to 30 seconds and can be changed via **Configure**
+on the integration (10–600 seconds). The cloud service is not a local device —
+polling every few seconds gains little and loads someone else's API.
+
+### Checking it worked
+
+You should get one device named **Spa**, showing your controller type as the
+model and its firmware version. Water temperature should match what the spa's
+own panel shows. If your panel reads in Celsius and this reads the same, the
+unit handling is working — see [Temperature units](#temperature-units) for why
+that is worth checking.
+
+### If it does not appear
+
+- **Not in the Add Integration list** — the restart did not pick it up. Confirm
+  `config/custom_components/controlmyspa/manifest.json` exists, then check
+  **Settings → System → Logs** for `controlmyspa`; an import error shows there.
+  A hard refresh of the browser also helps, as the integration list is cached.
+- **All entities Unavailable** — the spa is reporting itself offline. Check the
+  **Online** and **Last uplink** diagnostic entities, which stay available
+  during an outage precisely so you can see this.
+- **Setup fails with "cannot connect"** — Home Assistant cannot reach
+  `iot.controlmyspa.com`. Check its DNS and internet access.
+
+For anything else, `scripts/probe.py` exercises the API directly from any
+machine with Python and prints what the service actually returns — usually
+faster than reading Home Assistant logs. See
+[Verifying before you install](#verifying-before-you-install).
 
 ## Entities
 
