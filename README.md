@@ -155,10 +155,12 @@ without running the package's Home Assistant imports.
 
 Home Assistant itself requires Python 3.13+; the test suite above does not.
 
-## Credits
+## Related projects
 
-The API surface this is built on was mapped by probing the live service after
-the previous `/idm/tokenEndpoint` discovery route was removed. Prior art worth
-knowing about: [`mikakoivisto/controlmyspa-ha-mqtt`](https://github.com/mikakoivisto/controlmyspa-ha-mqtt)
-(JavaScript MQTT bridge) and [`arska/controlmyspa`](https://github.com/arska/controlmyspa)
-(Python client) — both written against the older API.
+No code here is derived from any of these; the API surface was mapped by
+probing the live service after the old `/idm/tokenEndpoint` discovery route was
+removed. Listed because they are what searches currently turn up, and both were
+written against the API that no longer exists:
+
+- [`mikakoivisto/controlmyspa-ha-mqtt`](https://github.com/mikakoivisto/controlmyspa-ha-mqtt)
+- [`arska/controlmyspa`](https://github.com/arska/controlmyspa)
