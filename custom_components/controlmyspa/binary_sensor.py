@@ -26,6 +26,8 @@ class ControlMySpaBinarySensorDescription(BinarySensorEntityDescription):
     value_fn: Callable[[SpaState], bool | None]
     # Connectivity and staleness must keep reporting while the spa is offline.
     always_available: bool = False
+    # Only create the entity when the spa reports the hardware as fitted.
+    requires_lighting: bool = False
 
 
 BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
@@ -69,6 +71,7 @@ BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
         key="light",
         translation_key="light",
         device_class=BinarySensorDeviceClass.LIGHT,
+        requires_lighting=True,
         value_fn=lambda spa: spa.light_on,
     ),
     ControlMySpaBinarySensorDescription(
@@ -129,9 +132,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up the binary sensor platform."""
     coordinator = entry.runtime_data
+    lighting_fitted = coordinator.data.light_present
+
     async_add_entities(
         ControlMySpaBinarySensor(coordinator, description)
         for description in BINARY_SENSORS
+        if lighting_fitted or not description.requires_lighting
     )
 
 

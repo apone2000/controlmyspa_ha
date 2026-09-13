@@ -47,20 +47,50 @@ All entities hang off a single spa device.
 limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
 health, last uplink, and the filter / water-change / ClearRay reminder counters.
 
-**Binary sensors** — online, heating, temperature reached, error, light, eco
-mode, soak mode, cleanup cycle, priming mode, and the panel / temperature /
-settings / maintenance locks.
+**Binary sensors** — online, heating, temperature reached, error, eco mode,
+soak mode, cleanup cycle, priming mode, and the panel / temperature / settings
+/ maintenance locks.
 
-Temperatures follow the unit the spa itself reports, rather than assuming one.
+A light entity is created **only** on spas with Tri-Zone Lighting, which report
+`primaryTZLStatus` as present. Spas with ordinary lights report
+`TZL_NOT_PRESENT`: those lights work, but their state lived in the removed
+`components` array and has no replacement in this API. No entity is created
+rather than one reporting a confident wrong value — see below.
+
 Less commonly useful entities are created disabled; enable them from the device
 page if you want them.
 
+### Temperature units
+
+The payload's `celsius` field describes how the mobile app *displays*
+temperatures, not the unit the API sends. It has been observed reading `true`
+on a spa reporting `currentTemp: "100.00"` with a configured maximum of `104` —
+plainly Fahrenheit. The `alerts` block carries the same contradiction under a
+differently misspelled `celcius` key.
+
+The unit is therefore inferred from `setupParams`: every spa tops out near 40C
+/ 104F, so a maximum above 50 can only be Fahrenheit. The integration then
+declares that as the native unit and lets Home Assistant convert to whatever
+your system is set to. If your spa displays 38C, this reports 38C — by way of
+100F, honestly labelled.
+
+### Unreported fields
+
+Controllers return `0` for hardware they do not have. Ambient temperature, high
+limit temperature, and the four reminder counters are treated as *unknown* when
+zero rather than published as real readings, since "0 days until filter clean"
+would otherwise read as permanently overdue.
+
 ### Availability
 
-When the spa goes offline, or its last uplink is more than 15 minutes old, its
-entities go **unavailable** rather than continuing to report the last known
-reading. A hot tub frozen at a plausible-looking temperature is worse than one
-that plainly says it has lost contact.
+Each payload carries a `staleTimestamp`, roughly three minutes after its
+uplink — the service stating how long the reading stays good. Past that, plus a
+two-minute grace period so a slightly late uplink does not make entities flap,
+the spa's entities go **unavailable** rather than continuing to report the last
+known reading. A hot tub frozen at a plausible-looking temperature is worse
+than one that plainly says it has lost contact.
+
+Payloads without a `staleTimestamp` fall back to a 15-minute uplink age check.
 
 The `Online`, `Stale data`, and `Last uplink` entities deliberately stay
 available during an outage — they are how you see what is going on.
@@ -94,9 +124,18 @@ its path and request body field names are all that is needed.
 Once that is known, target temperature and light control can be added, and the
 separate temperature sensors replaced by a proper climate entity.
 
-Jets, blowers, pumps, and ozone are a larger unknown: the `components` array the
-older API exposed is absent from the current one, and no replacement has been
-found.
+Jets, blowers, pumps, ozone, and ordinary (non-TZL) light state are a larger
+unknown: the `components` array the older API exposed is absent from the
+current one, and twelve read endpoints were probed without finding a
+replacement. `/web/broker` and `/web/gateway-broker` both return `403` rather
+than `404` — the routes exist, but an ordinary account token is not permitted.
+
+One promising lead: `gatewayBroker.brokerId` expands to a full broker record
+rather than an identifier, naming `iot.controlmyspa.com:8883` (MQTT over TLS)
+as the spa's push channel, and `lastMqttMessages` shows the traffic types
+flowing over it — `SPA_STATE`, `TZL_STATE`, `FAULT_LOGS`. If those messages
+carry full component state, subscribing would restore both live updates and the
+missing devices. Topic structure and broker credentials are unknown.
 
 ## Development
 

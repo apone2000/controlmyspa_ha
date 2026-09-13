@@ -29,8 +29,18 @@ DEFAULT_SCAN_INTERVAL: Final = 30
 MIN_SCAN_INTERVAL: Final = 10
 MAX_SCAN_INTERVAL: Final = 600
 
-# Readings older than this are treated as unusable even if the spa still
-# reports itself online.
+# The API supplies its own staleTimestamp, roughly three minutes after each
+# uplink. A grace period on top of it stops entities flapping when an uplink
+# arrives slightly late.
+STALE_GRACE: Final = 120
+
+# Fallback when the payload carries no staleTimestamp at all.
 STALE_AFTER: Final = 900
+
+# The payload's "celsius" field reports an app display preference, not the unit
+# the values are actually in, so the unit is inferred from the configured
+# limits instead. Spa maximums are ~40C / ~104F, so nothing sits near this
+# boundary and the test cannot be ambiguous.
+FAHRENHEIT_THRESHOLD: Final = 50
 
 MANUFACTURER: Final = "Balboa Water Group"

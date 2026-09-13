@@ -26,7 +26,7 @@ class ControlMySpaSensorDescription(SensorEntityDescription):
     """Describes a ControlMySpa sensor and how to read its value."""
 
     value_fn: Callable[[SpaState], Any]
-    # Temperature units follow the spa's own setting rather than a fixed unit.
+    # Temperature units are resolved per-reading from the payload.
     is_temperature: bool = False
     # Diagnostics that stay meaningful while the spa is unreachable.
     always_available: bool = False
@@ -154,12 +154,17 @@ class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
-        """Return the unit, following the spa's own temperature setting."""
+        """Return the unit the API actually sends.
+
+        Home Assistant converts to whatever the user's system prefers, so the
+        job here is to declare the payload's own unit honestly rather than to
+        convert anything.
+        """
         if self.entity_description.is_temperature:
             return (
-                UnitOfTemperature.CELSIUS
-                if self.spa.celsius
-                else UnitOfTemperature.FAHRENHEIT
+                UnitOfTemperature.FAHRENHEIT
+                if self.spa.fahrenheit
+                else UnitOfTemperature.CELSIUS
             )
         return self.entity_description.native_unit_of_measurement
 

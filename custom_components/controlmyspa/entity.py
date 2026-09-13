@@ -32,7 +32,7 @@ class ControlMySpaEntity(CoordinatorEntity[ControlMySpaCoordinator]):
             identifiers={(DOMAIN, identifier)},
             manufacturer=MANUFACTURER,
             name="Spa",
-            model=spa.heater_type or "ControlMySpa",
+            model=spa.controller_type or "ControlMySpa",
             serial_number=spa.serial_number,
             sw_version=spa.controller_version,
         )

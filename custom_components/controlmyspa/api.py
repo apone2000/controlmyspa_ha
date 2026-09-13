@@ -92,6 +92,11 @@ class ControlMySpaClient:
         self._auth_lock = asyncio.Lock()
 
     @property
+    def access_token(self) -> str | None:
+        """Return the current access token, for diagnostics only."""
+        return self._access_token
+
+    @property
     def is_authenticated(self) -> bool:
         """Return True while the cached token is still usable."""
         if not self._access_token:
