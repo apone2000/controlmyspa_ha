@@ -1,0 +1,121 @@
+# ControlMySpa for Home Assistant
+
+A Home Assistant custom integration for Balboa **ControlMySpa** hot tubs, built
+against the current `/web` cloud API.
+
+It talks to the cloud service directly and creates native Home Assistant
+entities. There is no MQTT broker, no add-on, and no external process to run —
+it works on every Home Assistant install type (OS, Container, Supervised, Core)
+and declares no extra Python dependencies.
+
+> **Status: read-only.** This release publishes spa state into Home Assistant.
+> Setting the temperature and controlling the light are not implemented yet —
+> see [Write support](#write-support).
+
+## Install
+
+### HACS
+
+1. HACS → ⋮ → **Custom repositories**
+2. Add `https://github.com/apone2000/controlmyspa_mqtt_ha` as an **Integration**
+3. Install **ControlMySpa**, then restart Home Assistant
+
+### Manual
+
+Copy `custom_components/controlmyspa` into your Home Assistant `config/custom_components/`
+directory and restart.
+
+## Set up
+
+**Settings → Devices & Services → Add Integration → ControlMySpa**, then sign in
+with the same email and password you use in the ControlMySpa app.
+
+Credentials are stored in Home Assistant's encrypted config entry store. If the
+password is ever rejected later, Home Assistant prompts you to re-authenticate
+rather than silently going offline.
+
+The polling interval defaults to 30 seconds and can be changed under the
+integration's **Configure** option (10–600 seconds). The cloud service is not a
+local device — polling every few seconds gains little and loads someone else's
+API.
+
+## Entities
+
+All entities hang off a single spa device.
+
+**Sensors** — water temperature, target temperature, ambient temperature, high
+limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
+health, last uplink, and the filter / water-change / ClearRay reminder counters.
+
+**Binary sensors** — online, heating, temperature reached, error, light, eco
+mode, soak mode, cleanup cycle, priming mode, and the panel / temperature /
+settings / maintenance locks.
+
+Temperatures follow the unit the spa itself reports, rather than assuming one.
+Less commonly useful entities are created disabled; enable them from the device
+page if you want them.
+
+### Availability
+
+When the spa goes offline, or its last uplink is more than 15 minutes old, its
+entities go **unavailable** rather than continuing to report the last known
+reading. A hot tub frozen at a plausible-looking temperature is worse than one
+that plainly says it has lost contact.
+
+The `Online`, `Stale data`, and `Last uplink` entities deliberately stay
+available during an outage — they are how you see what is going on.
+
+## Verifying before you install
+
+`scripts/probe.py` exercises the API on its own, with no Home Assistant
+involved. Useful for confirming credentials or seeing what your spa actually
+reports:
+
+```bash
+python scripts/probe.py --email you@example.com
+```
+
+Add `--dump spa.json` to write the full raw record out for inspection. That file
+contains account identifiers, so do not commit or share it as-is. No password or
+token is ever printed.
+
+## Write support
+
+Commands go to `POST /web/spa-commands`, but **the request body format is not
+publicly documented and has not yet been captured**, so no write path is
+implemented. Guessing at the payload would produce an integration whose controls
+silently do nothing, which is worse than not offering them.
+
+Capturing it is straightforward: open the ControlMySpa web portal with the
+browser's network inspector recording, filter to XHR/fetch, clear the log, and
+toggle the light once. The single non-`GET` request that appears is the answer —
+its path and request body field names are all that is needed.
+
+Once that is known, target temperature and light control can be added, and the
+separate temperature sensors replaced by a proper climate entity.
+
+Jets, blowers, pumps, and ozone are a larger unknown: the `components` array the
+older API exposed is absent from the current one, and no replacement has been
+found.
+
+## Development
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install pytest pytest-asyncio aiohttp
+.venv/bin/python -m pytest
+```
+
+The `api` and `models` modules import no Home Assistant code, so they are tested
+directly and no test contacts the live service. `tests/conftest.py` loads them
+without running the package's Home Assistant imports.
+
+Home Assistant itself requires Python 3.13+; the test suite above does not.
+
+## Credits
+
+The API surface this is built on was mapped by probing the live service after
+the previous `/idm/tokenEndpoint` discovery route was removed. Prior art worth
+knowing about: [`mikakoivisto/controlmyspa-ha-mqtt`](https://github.com/mikakoivisto/controlmyspa-ha-mqtt)
+(JavaScript MQTT bridge) and [`arska/controlmyspa`](https://github.com/arska/controlmyspa)
+(Python client) — both written against the older API.
