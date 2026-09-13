@@ -21,3 +21,6 @@ venv/
 # macOS
 .DS_Store
 controlmyspa-*.zip
+
+# Local session notes, not part of the project
+HANDOFF.md
