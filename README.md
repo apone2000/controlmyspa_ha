@@ -106,9 +106,12 @@ reports:
 python scripts/probe.py --email you@example.com
 ```
 
-Add `--dump spa.json` to write the full raw record out for inspection. That file
-contains account identifiers, so do not commit or share it as-is. No password or
-token is ever printed.
+Add `--dump spa.json` to write the full raw record out for inspection. **That
+file contains account identifiers** -- serial number, owner email, dealer
+details, `regKey` and IP address -- so it is gitignored and must not be shared
+as-is. Use `scripts/inspect_payload.py` instead when you want to show someone
+the payload shape: it strips identifying fields first. No password or token is
+ever printed by either script.
 
 ## Write support
 

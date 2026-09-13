@@ -10,8 +10,13 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
-# Local probe output — may contain identifiers from your account
-spa-dump*.json
+# Local probe output. These contain account identifiers -- serial number,
+# owner email, dealer details, regKey, IP -- and must never be committed.
+# Root-anchored so the integration's own JSON files are unaffected.
+/spa.json
+/spa*.json
+/*dump*.json
+/*.har
 
 # macOS
 .DS_Store
