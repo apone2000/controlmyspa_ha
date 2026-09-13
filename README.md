@@ -26,7 +26,7 @@ ships, so there is nothing to install and nothing to conflict.
 ### Via HACS
 
 1. **HACS → ⋮ (top right) → Custom repositories**
-2. Paste `https://github.com/apone2000/controlmyspa_mqtt_ha`, type **Integration**, **Add**
+2. Paste `https://github.com/apone2000/controlmyspa_ha`, type **Integration**, **Add**
 3. Find **ControlMySpa** in the HACS list and click **Download**
 4. **Restart Home Assistant** (Settings → System → Restart)
 
