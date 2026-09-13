@@ -30,12 +30,14 @@ MIN_SCAN_INTERVAL: Final = 10
 MAX_SCAN_INTERVAL: Final = 600
 
 # The API supplies its own staleTimestamp, roughly three minutes after each
-# uplink. A grace period on top of it stops entities flapping when an uplink
-# arrives slightly late.
+# uplink. That window describes how fresh a reading is, not how long the spa is
+# worth listening to: spas uplink far less often than every three minutes, so
+# this drives the "stale data" diagnostic only, never availability.
 STALE_GRACE: Final = 120
 
-# Fallback when the payload carries no staleTimestamp at all.
-STALE_AFTER: Final = 900
+# Availability backstop. An online spa whose last uplink is older than this has
+# stopped reporting in any meaningful sense, whatever its online flag claims.
+STALE_AFTER: Final = 3600
 
 # The payload's "celsius" field reports an app display preference, not the unit
 # the values are actually in, so the unit is inferred from the configured

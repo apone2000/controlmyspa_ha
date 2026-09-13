@@ -165,18 +165,24 @@ def test_fresh_reading_is_available():
     assert state.available is True
 
 
-def test_expired_stale_timestamp_marks_data_stale():
-    """Past the API's own expiry, plus grace, the reading is not trusted."""
+def test_stale_reading_stays_available():
+    """Staleness is informational and must never take entities offline.
+
+    Regression test for the real failure: spas uplink far less often than the
+    three-minute expiry the service stamps on each reading, so gating
+    availability on it left every entity permanently unavailable.
+    """
     old = datetime.now(timezone.utc) - timedelta(minutes=10)
     state = SpaState.from_api(
         _spa(uplinkTimestamp=old.isoformat(), staleTimestamp=old.isoformat())
     )
 
     assert state.is_stale is True
-    assert state.available is False
+    assert state.is_expired is False
+    assert state.available is True
 
 
-def test_slightly_late_uplink_does_not_flap():
+def test_slightly_late_uplink_is_not_yet_stale():
     """A grace period absorbs an uplink arriving just after its expiry."""
     just_past = datetime.now(timezone.utc) - timedelta(seconds=30)
     state = SpaState.from_api(_spa(staleTimestamp=just_past.isoformat()))
@@ -184,14 +190,13 @@ def test_slightly_late_uplink_does_not_flap():
     assert state.is_stale is False
 
 
-def test_missing_stale_timestamp_falls_back_to_uplink_age():
-    """Older payloads without staleTimestamp still get a staleness check."""
+def test_long_silence_marks_the_reading_expired():
+    """A spa quiet for over an hour is not reporting, whatever its flag says."""
     old = datetime.now(timezone.utc) - timedelta(hours=2)
-    state = SpaState.from_api(
-        _spa(staleTimestamp=None, uplinkTimestamp=old.isoformat())
-    )
+    state = SpaState.from_api(_spa(uplinkTimestamp=old.isoformat()))
 
-    assert state.is_stale is True
+    assert state.is_expired is True
+    assert state.available is False
 
 
 def test_no_timestamps_at_all_is_not_treated_as_stale():
@@ -199,6 +204,8 @@ def test_no_timestamps_at_all_is_not_treated_as_stale():
     state = SpaState.from_api(_spa(staleTimestamp=None, uplinkTimestamp=None))
 
     assert state.is_stale is False
+    assert state.is_expired is False
+    assert state.available is True
 
 
 def test_offline_spa_is_unavailable():

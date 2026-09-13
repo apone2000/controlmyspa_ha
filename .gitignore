@@ -15,3 +15,4 @@ spa-dump*.json
 
 # macOS
 .DS_Store
+controlmyspa-*.zip

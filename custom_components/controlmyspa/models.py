@@ -150,30 +150,35 @@ class SpaState:
 
     @property
     def is_stale(self) -> bool:
-        """Return True when the last reading is too old to trust.
+        """Return True once the reading is past the expiry the API gave it.
 
-        The API states its own expiry via staleTimestamp; a grace period on top
-        absorbs an uplink arriving slightly late without flapping entities.
+        Informational only. Spas uplink well less often than the three-minute
+        window the service attaches to each reading, so a stale reading here is
+        routine rather than a fault, and this must not gate availability.
         """
-        now = datetime.now(timezone.utc)
+        if self.stale_timestamp is None:
+            return False
+        return datetime.now(timezone.utc) > self.stale_timestamp + timedelta(
+            seconds=STALE_GRACE
+        )
 
-        if self.stale_timestamp is not None:
-            return now > self.stale_timestamp + timedelta(seconds=STALE_GRACE)
-
-        if self.uplink_timestamp is not None:
-            return (now - self.uplink_timestamp).total_seconds() > STALE_AFTER
-
-        return False
+    @property
+    def is_expired(self) -> bool:
+        """Return True when the last uplink is old enough to distrust entirely."""
+        if self.uplink_timestamp is None:
+            return False
+        age = (datetime.now(timezone.utc) - self.uplink_timestamp).total_seconds()
+        return age > STALE_AFTER
 
     @property
     def available(self) -> bool:
         """Return True when readings should be published rather than withheld.
 
-        Entities go unavailable instead of holding the last known value, so a
-        spa that drops off the network does not look like a spa sitting at a
-        constant temperature.
+        Driven by the spa's own online flag, which the service maintains from
+        the gateway connection, with a long backstop for a spa that claims to
+        be online while having gone quiet for an hour.
         """
-        return self.online and not self.is_stale
+        return self.online and not self.is_expired
 
     @classmethod
     def from_api(cls, spa: dict[str, Any]) -> SpaState:

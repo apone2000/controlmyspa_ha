@@ -83,14 +83,15 @@ would otherwise read as permanently overdue.
 
 ### Availability
 
-Each payload carries a `staleTimestamp`, roughly three minutes after its
-uplink — the service stating how long the reading stays good. Past that, plus a
-two-minute grace period so a slightly late uplink does not make entities flap,
-the spa's entities go **unavailable** rather than continuing to report the last
-known reading. A hot tub frozen at a plausible-looking temperature is worse
-than one that plainly says it has lost contact.
+Availability follows the spa's own `online` flag, which the service maintains
+from the gateway connection, plus a one-hour backstop on the last uplink for a
+spa that claims to be online after going quiet.
 
-Payloads without a `staleTimestamp` fall back to a 15-minute uplink age check.
+Each payload also carries a `staleTimestamp` about three minutes after its
+uplink. That is *not* used for availability: spas uplink far less often than
+every three minutes, so a reading past its stated expiry is routine rather than
+a fault. It drives the optional **Stale data** diagnostic sensor instead, for
+anyone who wants to see or automate on reading freshness.
 
 The `Online`, `Stale data`, and `Last uplink` entities deliberately stay
 available during an outage — they are how you see what is going on.
