@@ -127,7 +127,8 @@ mode (Ready / Rest).
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
 has no off mode — the heater cannot be switched off through the API, only moved
-to Rest.
+to Rest. Ready and Rest are its presets, so the thermostat row reads e.g.
+"Idle (Heat - Rest)" and the thermostat card can switch between them.
 
 The API works in Fahrenheit. In a Celsius Home Assistant the thermostat and
 temperature sensors show values the way the portal and the spa's panel do —

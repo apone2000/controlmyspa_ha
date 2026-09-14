@@ -81,6 +81,18 @@
       "settings_lock": { "name": "Settings lock" },
       "maintenance_locked": { "name": "Maintenance lock" }
     },
+    "climate": {
+      "thermostat": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "ready": "Ready",
+              "rest": "Rest"
+            }
+          }
+        }
+      }
+    },
     "light": {
       "light": { "name": "Light" },
       "light_numbered": { "name": "Light {number}" }
