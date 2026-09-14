@@ -297,7 +297,7 @@ clock (`POST /web/spa-commands/time`) is planned.
 
 ## Changelog
 
-### Unreleased (on `develop`)
+### v0.2.1
 
 - **Celsius display matches the spa.** In a Celsius Home Assistant, the
   thermostat and temperature sensors round as the portal and panel do (100 °F
