@@ -126,6 +126,59 @@ def test_no_reading_sentinel_is_unknown_not_a_temperature():
     assert SpaState.from_api(_spa(currentTemp="96.00")).current_temp == 96.0
 
 
+def test_a_fresh_reading_records_when_it_was_measured():
+    """The measurement time is the uplink that carried the reading."""
+    state = SpaState.from_api(_spa(currentTemp="96.00"))
+
+    assert state.current_temp_at == state.uplink_timestamp
+    assert state.current_temp_held is False
+    assert SpaState.from_api(_spa(currentTemp="262.00")).current_temp_at is None
+
+
+def test_last_good_reading_is_held_while_the_spa_has_none():
+    """Graphs stay continuous, and the snapshot says the value is held."""
+    earlier = datetime.now(timezone.utc) - timedelta(hours=3)
+    previous = SpaState.from_api(
+        _spa(currentTemp="96.00", uplinkTimestamp=earlier.isoformat())
+    )
+
+    held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        previous
+    )
+    still_held = SpaState.from_api(_spa(currentTemp="")).holding_water_temperature_from(
+        held
+    )
+
+    assert (held.current_temp, held.current_temp_held) == (96.0, True)
+    assert held.current_temp_at == earlier
+    # Holding again keeps the original measurement time, not the last poll's.
+    assert still_held.current_temp_at == earlier
+
+
+def test_a_fresh_reading_ends_the_hold():
+    """Once the pump runs, the real value replaces the held one."""
+    previous = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        SpaState.from_api(_spa(currentTemp="96.00"))
+    )
+
+    fresh = SpaState.from_api(_spa(currentTemp="98.00")).holding_water_temperature_from(
+        previous
+    )
+
+    assert (fresh.current_temp, fresh.current_temp_held) == (98.0, False)
+
+
+def test_nothing_to_hold_stays_unknown():
+    """After a restart there is no earlier reading to carry over."""
+    no_reading = SpaState.from_api(_spa(currentTemp="262.00"))
+
+    assert no_reading.holding_water_temperature_from(None).current_temp is None
+    assert (
+        no_reading.holding_water_temperature_from(no_reading).current_temp_held
+        is False
+    )
+
+
 def test_no_reading_sentinel_is_caught_in_celsius_data_too():
     """The window is applied in Fahrenheit whatever unit the data is in."""
     metric = {

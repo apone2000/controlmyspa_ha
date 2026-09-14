@@ -181,12 +181,21 @@ limit temperature, and the four reminder counters are treated as *unknown* when
 zero rather than published as real readings, since "0 days until filter clean"
 would otherwise read as permanently overdue.
 
-The water temperature can also be *unknown*. The spa's sensor sits in the
+The water temperature needs the same care. The spa's sensor sits in the
 plumbing, so when the pump has not run for a while — routine in Rest mode
 between filter cycles — the panel shows `---` and the API reports an
 impossible value (around 262 °F). Like the ControlMySpa portal, anything above
-150 °F or at or below 1 °F is treated as no reading, so the sensor and the
-thermostat's current temperature show *Unknown* until the pump runs again.
+150 °F or at or below 1 °F is treated as no reading. Rather than leave a gap,
+the last good reading is **held** until the pump runs again:
+
+- **Water temperature held** (diagnostic) is on while the value is held. Put it
+  in the same History Graph card as the water temperature and it draws as a
+  coloured bar under the line, marking where the value was not measured.
+- The water temperature sensor's `measured_at` attribute is when its value was
+  actually taken.
+
+After a Home Assistant restart there is nothing to hold, so the temperature is
+*Unknown* until the spa next measures it.
 
 ### Availability
 

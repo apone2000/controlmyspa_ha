@@ -26,6 +26,7 @@ class ControlMySpaSensorDescription(SensorEntityDescription):
     """Describes a ControlMySpa sensor and how to read its value."""
 
     value_fn: Callable[[SpaState], Any]
+    attributes_fn: Callable[[SpaState], dict[str, Any]] | None = None
     # Temperature units are resolved per-reading from the payload.
     is_temperature: bool = False
     # Diagnostics that stay meaningful while the spa is unreachable.
@@ -40,6 +41,9 @@ SENSORS: tuple[ControlMySpaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         is_temperature=True,
         value_fn=lambda spa: spa.current_temp,
+        # The value may be held from an earlier reading; this says when it was
+        # actually measured.
+        attributes_fn=lambda spa: {"measured_at": spa.current_temp_at},
     ),
     ControlMySpaSensorDescription(
         key="target_temp",
@@ -177,6 +181,13 @@ class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
         if self.entity_description.is_temperature:
             return display_temperature(value, self.spa.fahrenheit, self.display_celsius)
         return value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra attributes, for sensors whose description defines them."""
+        if self.entity_description.attributes_fn is None:
+            return None
+        return self.entity_description.attributes_fn(self.spa)
 
     @property
     def available(self) -> bool:

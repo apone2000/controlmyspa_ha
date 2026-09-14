@@ -89,8 +89,8 @@ def _as_float_reported(value: Any) -> float | None:
 def _as_water_temp(value: Any, fahrenheit: bool) -> float | None:
     """Coerce the current water temperature, dropping no-reading sentinels.
 
-    Unknown is what the spa's own panel shows at these times, so it is
-    reported as unknown rather than as the last value or the sentinel.
+    A sentinel becomes None here; the coordinator then carries the last good
+    reading over (see SpaState.holding_water_temperature_from).
     """
     result = _as_float(value)
     if result is None:
@@ -318,6 +318,11 @@ class SpaState:
 
     online: bool = False
     current_temp: float | None = None
+    # True while current_temp is the last good reading, held over polls in
+    # which the spa had none because its pump had not run. current_temp_at is
+    # when that reading was taken.
+    current_temp_held: bool = False
+    current_temp_at: datetime | None = None
     target_temp: float | None = None
     ambient_temp: float | None = None
     high_limit_temp: float | None = None
@@ -367,6 +372,26 @@ class SpaState:
     stale_timestamp: datetime | None = None
 
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def holding_water_temperature_from(self, previous: SpaState | None) -> SpaState:
+        """Return this snapshot with the last good water temperature held over.
+
+        Without a pump run the spa has no water reading at all, sometimes for
+        hours. Holding the previous one keeps graphs continuous, and
+        ``current_temp_held`` says the value is not a fresh measurement.
+        """
+        if (
+            self.current_temp is not None
+            or previous is None
+            or previous.current_temp is None
+        ):
+            return self
+        return replace(
+            self,
+            current_temp=previous.current_temp,
+            current_temp_held=True,
+            current_temp_at=previous.current_temp_at,
+        )
 
     def components_of(self, component_type: str) -> list[Component]:
         """Return every component of one type, in port order."""
@@ -454,6 +479,8 @@ class SpaState:
             max_temp = _as_float(setup.get("lowRangeHigh"))
 
         light_present, light_on = _parse_lighting(current, tzl)
+        current_temp = _as_water_temp(current.get("currentTemp"), fahrenheit)
+        uplink_timestamp = _as_datetime(current.get("uplinkTimestamp"))
 
         components: tuple[Component, ...] | None = None
         heater_mode = current.get("heaterMode")
@@ -474,7 +501,8 @@ class SpaState:
             spa_id=str(spa.get("_id") or ""),
             serial_number=spa.get("serialNumber") or current.get("spaSerialNumber"),
             online=bool(current.get("online")),
-            current_temp=_as_water_temp(current.get("currentTemp"), fahrenheit),
+            current_temp=current_temp,
+            current_temp_at=uplink_timestamp if current_temp is not None else None,
             target_temp=target_temp,
             ambient_temp=_as_float_reported(current.get("ambientTemp")),
             high_limit_temp=_as_float_reported(current.get("hiLimitTemp")),
@@ -506,7 +534,7 @@ class SpaState:
             light_present=light_present,
             light_on=light_on,
             components=components,
-            uplink_timestamp=_as_datetime(current.get("uplinkTimestamp")),
+            uplink_timestamp=uplink_timestamp,
             stale_timestamp=_as_datetime(current.get("staleTimestamp")),
             raw=spa,
         )

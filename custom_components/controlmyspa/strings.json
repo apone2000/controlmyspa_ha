@@ -68,6 +68,7 @@
     "binary_sensor": {
       "online": { "name": "Online" },
       "stale_data": { "name": "Stale data" },
+      "water_temp_held": { "name": "Water temperature held" },
       "heating": { "name": "Heating" },
       "temperature_reached": { "name": "Temperature reached" },
       "error": { "name": "Error" },

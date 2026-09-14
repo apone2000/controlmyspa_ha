@@ -65,7 +65,9 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             raise UpdateFailed(str(err)) from err
 
         current_state = await self._async_get_current_state(str(spa.get("_id") or ""))
-        return SpaState.from_api(spa, current_state)
+        return SpaState.from_api(spa, current_state).holding_water_temperature_from(
+            self.data
+        )
 
     async def _async_get_current_state(self, spa_id: str) -> dict[str, Any] | None:
         """Read component state, tolerating a failure after setup.

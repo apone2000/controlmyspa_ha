@@ -49,6 +49,14 @@ BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
         value_fn=lambda spa: spa.is_stale,
     ),
     ControlMySpaBinarySensorDescription(
+        key="water_temp_held",
+        translation_key="water_temp_held",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # On while the water temperature is the last good reading rather than
+        # a fresh one. Graph it under the temperature to see where.
+        value_fn=lambda spa: spa.current_temp_held,
+    ),
+    ControlMySpaBinarySensorDescription(
         key="heating",
         translation_key="heating",
         device_class=BinarySensorDeviceClass.HEAT,
