@@ -325,6 +325,13 @@ class ControlMySpaClient:
             payload["deviceNumber"] = device_number
         await self._async_command("component-state", payload)
 
+    async def async_set_target_temperature(self, spa_id: str, value: float) -> None:
+        """Set the target temperature, in Fahrenheit whatever the display unit."""
+        await self._async_command(
+            "temperature/value",
+            {"spaId": spa_id, "via": COMMAND_VIA, "value": value},
+        )
+
     async def async_set_heater_mode(self, spa_id: str, mode: str) -> None:
         """Switch the heater between READY and REST."""
         await self._async_command(

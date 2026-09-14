@@ -427,6 +427,30 @@ def test_with_component_value_leaves_the_original_untouched():
     assert unread.with_component_value("LIGHT", 0, "OFF") is unread
 
 
+# --- target temperature ------------------------------------------------------
+
+
+def test_target_temperature_prefers_current_state():
+    """The portal's temperature control reads current-state."""
+    assert _with_components(desiredTemp="102.00").target_temp == 102.0
+    assert _with_components().target_temp == 100.0
+    assert _with_components(desiredTemp="").target_temp == 100.0
+
+
+def test_fahrenheit_targets_are_sent_as_whole_degrees():
+    """Halves round up, as the portal's Math.round does."""
+    assert models.command_temperature(101.4, True) == 101.0
+    assert models.command_temperature(100.5, True) == 101.0
+    assert models.command_temperature(99.5, True) == 100.0
+
+
+def test_celsius_targets_are_sent_as_fahrenheit_half_degrees():
+    """The command is Fahrenheit even when the spa shows Celsius."""
+    assert models.command_temperature(40.0, False) == 104.0
+    # 38.5C is 101.3F, which the portal rounds to the nearest half degree.
+    assert models.command_temperature(38.5, False) == 101.5
+
+
 # --- heater mode -------------------------------------------------------------
 
 

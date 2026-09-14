@@ -12,8 +12,10 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --light off
     python scripts/verify_controls.py --email you@example.com --blower on
     python scripts/verify_controls.py --email you@example.com --heat-mode rest
+    python scripts/verify_controls.py --email you@example.com --temp 100
 
-Without --light, --blower or --heat-mode nothing is sent.
+Without --light, --blower, --heat-mode or --temp nothing is sent. --temp is in
+the unit the spa reports, as the thermostat entity shows it.
 """
 
 from __future__ import annotations
@@ -74,6 +76,14 @@ def show(spa: dict, current: dict, state) -> None:
     print(f"sensor.spa_heater_mode    = {models.heater_mode_state(state.heater_mode)!r}")
     print(f"select.spa_heat_mode      = {models.settable_heater_mode(state.heater_mode)!r}")
 
+    unit = "F" if state.fahrenheit else "C"
+    print("\n=== thermostat (climate.spa) ===")
+    print(f"current {state.current_temp} {unit}, target {state.target_temp} {unit}, "
+          f"heating={state.heating}")
+    print(f"range {state.temp_range}: targets {state.min_temp}-{state.max_temp} {unit}")
+    print(f"/web/spas desiredTemp     = {(spa.get('currentState') or {}).get('desiredTemp')!r}")
+    print(f"current-state desiredTemp = {current.get('desiredTemp')!r}")
+
     print("\n=== components ===")
     if state.components is None:
         print("current-state unreadable -- light and blower would be unavailable")
@@ -109,6 +119,7 @@ async def main() -> int:
     group.add_argument("--light", choices=("on", "off"))
     group.add_argument("--blower", choices=("on", "off"))
     group.add_argument("--heat-mode", choices=("ready", "rest"))
+    group.add_argument("--temp", type=float, metavar="DEGREES")
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -159,8 +170,28 @@ async def main() -> int:
                       f"current-state={fresh.heater_mode}", end="  ")
                 return models.settable_heater_mode(fresh.heater_mode) == args.heat_mode
 
+        elif args.temp is not None:
+            low, high = state.min_temp, state.max_temp
+            if low is not None and high is not None and not low <= args.temp <= high:
+                print(f"\n{args.temp} is outside the {state.temp_range} range "
+                      f"({low}-{high}); Home Assistant would refuse it too.")
+                return 1
+            value = models.command_temperature(args.temp, state.fahrenheit)
+            print(f"\nSending target {state.target_temp} -> {args.temp} via "
+                  f"async_set_target_temperature(<spa>, {value!r})")
+            send = client.async_set_target_temperature(spa_id, value)
+
+            def reached(fresh) -> bool:
+                print(f"/web/spas={(fresh.raw.get('currentState') or {}).get('desiredTemp')} "
+                      f"target={fresh.target_temp}", end="  ")
+                return (
+                    fresh.target_temp is not None
+                    and abs(fresh.target_temp - args.temp) < 0.01
+                )
+
         else:
-            print("\nRead-only. Pass --light, --blower or --heat-mode to send a command.")
+            print("\nRead-only. Pass --light, --blower, --heat-mode or --temp "
+                  "to send a command.")
             return 0
 
         try:

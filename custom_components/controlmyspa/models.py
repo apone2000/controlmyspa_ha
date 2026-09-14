@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -144,6 +145,20 @@ def normalise_component_value(value: Any, component_type: str) -> str:
         return scale[index] if index < len(scale) else "OFF"
     upper = text.upper()
     return upper if upper in COMPONENT_VALUES else "OFF"
+
+
+def command_temperature(value: float, fahrenheit: bool) -> float:
+    """Convert a target temperature into the value the command expects.
+
+    The portal always sends Fahrenheit: whole degrees when the spa shows
+    Fahrenheit, and otherwise Celsius converted and rounded to the nearest half
+    degree. Rounding follows JavaScript's Math.round (halves go up), not
+    Python's round-half-to-even.
+    """
+    if fahrenheit:
+        return float(math.floor(value + 0.5))
+    converted = value * 9 / 5 + 32
+    return math.floor(converted * 2 + 0.5) / 2
 
 
 def heater_mode_state(mode: str | None) -> str | None:
@@ -372,6 +387,7 @@ class SpaState:
 
         components: tuple[Component, ...] | None = None
         heater_mode = current.get("heaterMode")
+        target_temp = _as_float(current.get("desiredTemp"))
         if current_state is not None:
             parsed = (
                 Component.from_api(raw)
@@ -379,15 +395,17 @@ class SpaState:
                 if isinstance(raw, dict)
             )
             components = tuple(c for c in parsed if c is not None)
-            # The portal's heat mode control reads current-state, so prefer it.
+            # The portal's heat mode and temperature controls read current-state,
+            # so prefer it for the values those controls change.
             heater_mode = current_state.get("heaterMode") or heater_mode
+            target_temp = _as_float(current_state.get("desiredTemp")) or target_temp
 
         return cls(
             spa_id=str(spa.get("_id") or ""),
             serial_number=spa.get("serialNumber") or current.get("spaSerialNumber"),
             online=bool(current.get("online")),
             current_temp=_as_float(current.get("currentTemp")),
-            target_temp=_as_float(current.get("desiredTemp")),
+            target_temp=target_temp,
             ambient_temp=_as_float_reported(current.get("ambientTemp")),
             high_limit_temp=_as_float_reported(current.get("hiLimitTemp")),
             fahrenheit=fahrenheit,

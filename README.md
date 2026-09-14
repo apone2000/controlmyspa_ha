@@ -9,8 +9,8 @@ it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
 > **Status: early control.** Spa state is published into Home Assistant, and the
-> light, blower and heat mode can be controlled. Setting the temperature is not
-> implemented yet — see [Write support](#write-support).
+> target temperature, light, blower and heat mode can be controlled. Jets and
+> temperature range are not implemented yet — see [Write support](#write-support).
 
 ## Requirements
 
@@ -121,8 +121,21 @@ health, last uplink, and the filter / water-change / ClearRay reminder counters.
 soak mode, cleanup cycle, priming mode, and the panel / temperature / settings
 / maintenance locks.
 
-**Controls** — light (on/off), blower (on/off switch), and heat mode (Ready /
-Rest). The light and blower are created from the devices the spa itself
+**Controls** — a thermostat, light (on/off), blower (on/off switch), and heat
+mode (Ready / Rest).
+
+The thermostat (`climate.spa`) shows the water temperature and sets the
+target, within the limits of the active temperature range (High or Low). It
+has no off mode — the heater cannot be switched off through the API, only moved
+to Rest.
+
+The spa itself works in whole degrees Fahrenheit, whatever the panel or portal
+displays. In a Celsius Home Assistant a target is rounded to the nearest whole
+°F, so choosing 38.5 °C sets 101 °F and the thermostat then shows 38.3 °C. The
+portal's own Celsius view rounds that to 38.5, which is why the two can differ
+slightly.
+
+The light and blower are created from the devices the spa itself
 reports, so a spa without a blower gets no blower switch, and a spa with
 several lights gets them numbered. Both switch on at their strongest setting.
 
@@ -196,7 +209,7 @@ ever printed by either script.
 
 `scripts/verify_controls.py` runs the integration's own client and parsing
 against your spa and prints what the light, blower and heat mode entities would
-show. It is read-only unless given `--light`, `--blower` or `--heat-mode`, which
+show. It is read-only unless given `--light`, `--blower`, `--heat-mode` or `--temp`, which
 send that one command and re-read until the spa reports it:
 
 ```bash
@@ -207,8 +220,8 @@ python scripts/verify_controls.py --email you@example.com --blower on
 ## Write support
 
 Command formats were recovered from the ControlMySpa web portal's own
-JavaScript rather than guessed, and the light, blower and heat mode commands
-were verified against a real spa:
+JavaScript rather than guessed, and the temperature, light, blower and heat
+mode commands were all verified against a real spa:
 
 ```json
 POST /web/spa-commands/component-state
@@ -216,17 +229,23 @@ POST /web/spa-commands/component-state
 
 POST /web/spa-commands/temperature/heater-mode
 {"spaId": "...", "via": "WEB", "mode": "REST"}
+
+POST /web/spa-commands/temperature/value
+{"spaId": "...", "via": "WEB", "value": 101}
 ```
+
+The temperature `value` is always Fahrenheit, even for spas displayed in
+Celsius: the portal converts before sending and rounds to the nearest half
+degree.
 
 Device state comes from `GET /web/spas/{id}/current-state`, whose `components`
 array lists every controllable device — lights, pumps, blower, circulation
 pump, filters — with its current value and the values it accepts. It reflected
 an accepted command within three seconds when tested.
 
-Not implemented yet: target temperature, temperature range, and jets. Their
-endpoints are known (`temperature/value`, `temperature/range`, and
-`component-state` with `jet`) but untested. Once temperature works, the
-separate temperature sensors can become a proper climate entity.
+Not implemented yet: switching the temperature range, and jets. Their payloads
+are known (`temperature/range` with `{spaId, via, range}` as `HIGH` or `LOW`,
+and `component-state` with `jet`) but untested.
 
 ## Development
 

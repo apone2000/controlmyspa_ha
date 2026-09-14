@@ -12,6 +12,7 @@ from .coordinator import ControlMySpaConfigEntry, ControlMySpaCoordinator
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.CLIMATE,
     Platform.LIGHT,
     Platform.SELECT,
     Platform.SENSOR,

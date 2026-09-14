@@ -20,7 +20,7 @@ from .api import (
     ControlMySpaError,
 )
 from .const import COMMAND_REFRESH_DELAY, DOMAIN
-from .models import Component, SpaState
+from .models import Component, SpaState, command_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -104,6 +104,18 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
                 component.component_type, component.port, state
             )
         )
+        self._schedule_confirmation()
+
+    async def async_set_target_temperature(self, temperature: float) -> None:
+        """Set the target, given in the unit the spa reports, and show it."""
+        value = command_temperature(temperature, self.data.fahrenheit)
+        await self._async_send(
+            self.client.async_set_target_temperature(self.data.spa_id, value)
+        )
+        # A Celsius target arrives here already converted, e.g. 38.5C as
+        # 101.3F. Show what was actually sent, not what was asked for.
+        shown = value if self.data.fahrenheit else temperature
+        self.async_set_updated_data(replace(self.data, target_temp=shown))
         self._schedule_confirmation()
 
     async def async_set_heater_mode(self, mode: str) -> None:
