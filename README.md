@@ -129,11 +129,16 @@ target, within the limits of the active temperature range (High or Low). It
 has no off mode — the heater cannot be switched off through the API, only moved
 to Rest.
 
-The spa itself works in whole degrees Fahrenheit, whatever the panel or portal
-displays. In a Celsius Home Assistant a target is rounded to the nearest whole
-°F, so choosing 38.5 °C sets 101 °F and the thermostat then shows 38.3 °C. The
-portal's own Celsius view rounds that to 38.5, which is why the two can differ
-slightly.
+The API works in Fahrenheit. In a Celsius Home Assistant the thermostat and
+temperature sensors show values the way the portal and the spa's panel do —
+converted and rounded to the nearest half degree, so 100 °F reads 37.5 °C
+rather than an exact 37.8 — and the target steps in half degrees.
+
+The spa only keeps whole degrees Fahrenheit: a half degree is accepted but
+rounded away. A Celsius target is therefore sent as the nearest whole °F, so
+every value the spa can display sets exactly. A few half steps have no
+whole-°F equivalent — 38.0 °C falls between 100 °F (37.5) and 101 °F (38.5) —
+and settle on a neighbour, just as they do in the portal.
 
 The light and blower are created from the devices the spa itself
 reports, so a spa without a blower gets no blower switch, and a spa with

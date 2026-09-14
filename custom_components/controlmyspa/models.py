@@ -147,18 +147,63 @@ def normalise_component_value(value: Any, component_type: str) -> str:
     return upper if upper in COMPONENT_VALUES else "OFF"
 
 
-def command_temperature(value: float, fahrenheit: bool) -> float:
-    """Convert a target temperature into the value the command expects.
+def _portal_round(value: float) -> float:
+    """Round to the nearest half degree exactly as the portal does.
 
-    The portal always sends Fahrenheit: whole degrees when the spa shows
-    Fahrenheit, and otherwise Celsius converted and rounded to the nearest half
-    degree. Rounding follows JavaScript's Math.round (halves go up), not
-    Python's round-half-to-even.
+    The portal first truncates to one decimal place by slicing the number's
+    text, then rounds to a half with Math.round, where halves go up rather than
+    to even. Truncating first matters: 37.78 becomes 37.7 and so 37.5, not 38.
     """
-    if fahrenheit:
-        return float(math.floor(value + 0.5))
-    converted = value * 9 / 5 + 32
-    return math.floor(converted * 2 + 0.5) / 2
+    text = repr(float(value))
+    if "." in text and "e" not in text:
+        value = float(text[: text.index(".") + 2])
+    return math.floor(value * 2 + 0.5) / 2
+
+
+def portal_celsius(fahrenheit: float) -> float:
+    """Convert to Celsius as the portal and the spa's own panel display it."""
+    return _portal_round((fahrenheit - 32) * 5 / 9)
+
+
+def display_temperature(
+    value: float | None, api_fahrenheit: bool, celsius: bool
+) -> float | None:
+    """Return a reading in the unit an entity shows.
+
+    A Fahrenheit reading shown in Celsius gets the portal's half-degree
+    rounding rather than an exact conversion, so 100F reads 37.5 like the spa
+    does, not 37.8.
+    """
+    if value is None or not (api_fahrenheit and celsius):
+        return value
+    return portal_celsius(value)
+
+
+def command_temperature(
+    value: float,
+    celsius: bool,
+    low: float | None = None,
+    high: float | None = None,
+) -> float:
+    """Convert a target into the whole-Fahrenheit value the spa keeps.
+
+    The command takes Fahrenheit. The portal sends half degrees from its
+    Celsius view, but the spa only stores whole ones: 100.5 was accepted and
+    stored as 100 when tested live. Rounding to a whole degree here means every
+    Celsius value the spa can display round-trips exactly (38.5 -> 101F ->
+    38.5); the few half steps with no whole-degree equivalent, such as 38.0
+    between 100F (37.5) and 101F (38.5), settle on a neighbour just as they do
+    in the portal. Halves round up, as JavaScript's Math.round does.
+
+    ``low`` and ``high`` are Fahrenheit limits the result is clamped to.
+    """
+    fahrenheit = value * 9 / 5 + 32 if celsius else value
+    result = float(math.floor(fahrenheit + 0.5))
+    if low is not None:
+        result = max(result, low)
+    if high is not None:
+        result = min(result, high)
+    return result
 
 
 def heater_mode_state(mode: str | None) -> str | None:

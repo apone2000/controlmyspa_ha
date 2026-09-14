@@ -13,9 +13,11 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --blower on
     python scripts/verify_controls.py --email you@example.com --heat-mode rest
     python scripts/verify_controls.py --email you@example.com --temp 100
+    python scripts/verify_controls.py --email you@example.com --temp-c 38.0
 
-Without --light, --blower, --heat-mode or --temp nothing is sent. --temp is in
-the unit the spa reports, as the thermostat entity shows it.
+Without --light, --blower, --heat-mode, --temp or --temp-c nothing is sent.
+--temp is in the unit the spa reports; --temp-c is Celsius, converted as a
+Celsius Home Assistant would.
 """
 
 from __future__ import annotations
@@ -81,6 +83,12 @@ def show(spa: dict, current: dict, state) -> None:
     print(f"current {state.current_temp} {unit}, target {state.target_temp} {unit}, "
           f"heating={state.heating}")
     print(f"range {state.temp_range}: targets {state.min_temp}-{state.max_temp} {unit}")
+    if state.fahrenheit:
+        def c(value):
+            return models.display_temperature(value, True, True)
+
+        print(f"in a Celsius HA: current {c(state.current_temp)} C, target "
+              f"{c(state.target_temp)} C, targets {c(state.min_temp)}-{c(state.max_temp)} C")
     print(f"/web/spas desiredTemp     = {(spa.get('currentState') or {}).get('desiredTemp')!r}")
     print(f"current-state desiredTemp = {current.get('desiredTemp')!r}")
 
@@ -120,6 +128,7 @@ async def main() -> int:
     group.add_argument("--blower", choices=("on", "off"))
     group.add_argument("--heat-mode", choices=("ready", "rest"))
     group.add_argument("--temp", type=float, metavar="DEGREES")
+    group.add_argument("--temp-c", type=float, metavar="CELSIUS")
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -170,23 +179,31 @@ async def main() -> int:
                       f"current-state={fresh.heater_mode}", end="  ")
                 return models.settable_heater_mode(fresh.heater_mode) == args.heat_mode
 
-        elif args.temp is not None:
-            low, high = state.min_temp, state.max_temp
-            if low is not None and high is not None and not low <= args.temp <= high:
-                print(f"\n{args.temp} is outside the {state.temp_range} range "
+        elif args.temp is not None or args.temp_c is not None:
+            celsius = args.temp_c is not None
+            asked = args.temp_c if celsius else args.temp
+
+            def shown(value):
+                return models.display_temperature(value, state.fahrenheit, celsius)
+
+            low, high = shown(state.min_temp), shown(state.max_temp)
+            if low is not None and high is not None and not low <= asked <= high:
+                print(f"\n{asked} is outside the {state.temp_range} range "
                       f"({low}-{high}); Home Assistant would refuse it too.")
                 return 1
-            value = models.command_temperature(args.temp, state.fahrenheit)
-            print(f"\nSending target {state.target_temp} -> {args.temp} via "
+            limits = (state.min_temp, state.max_temp) if state.fahrenheit else (None, None)
+            value = models.command_temperature(asked, celsius, *limits)
+            print(f"\nSending target {shown(state.target_temp)} -> {asked} via "
                   f"async_set_target_temperature(<spa>, {value!r})")
             send = client.async_set_target_temperature(spa_id, value)
 
             def reached(fresh) -> bool:
                 print(f"/web/spas={(fresh.raw.get('currentState') or {}).get('desiredTemp')} "
-                      f"target={fresh.target_temp}", end="  ")
+                      f"target={fresh.target_temp} shows as {shown(fresh.target_temp)}",
+                      end="  ")
                 return (
                     fresh.target_temp is not None
-                    and abs(fresh.target_temp - args.temp) < 0.01
+                    and abs(fresh.target_temp - value) < 0.01
                 )
 
         else:

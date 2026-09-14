@@ -437,18 +437,57 @@ def test_target_temperature_prefers_current_state():
     assert _with_components(desiredTemp="").target_temp == 100.0
 
 
+def test_celsius_readings_use_the_portals_rounding():
+    """Observed live: the portal showed 101F as 38.5 and 100F as 37.5.
+
+    An exact conversion gives 38.3 and 37.8; the portal truncates to one
+    decimal and then rounds to a half degree.
+    """
+    assert models.portal_celsius(101) == 38.5
+    assert models.portal_celsius(100) == 37.5
+    assert models.portal_celsius(102) == 39.0
+    assert models.portal_celsius(104) == 40.0
+    assert models.portal_celsius(80) == 26.5
+
+
+def test_readings_convert_only_when_shown_in_celsius():
+    """Fahrenheit shown as Fahrenheit, and Celsius data, pass through."""
+    assert models.display_temperature(100.0, True, True) == 37.5
+    assert models.display_temperature(100.0, True, False) == 100.0
+    assert models.display_temperature(37.8, False, True) == 37.8
+    assert models.display_temperature(None, True, True) is None
+
+
 def test_fahrenheit_targets_are_sent_as_whole_degrees():
     """Halves round up, as the portal's Math.round does."""
-    assert models.command_temperature(101.4, True) == 101.0
-    assert models.command_temperature(100.5, True) == 101.0
-    assert models.command_temperature(99.5, True) == 100.0
+    assert models.command_temperature(101.4, celsius=False) == 101.0
+    assert models.command_temperature(100.5, celsius=False) == 101.0
+    assert models.command_temperature(99.5, celsius=False) == 100.0
 
 
-def test_celsius_targets_are_sent_as_fahrenheit_half_degrees():
-    """The command is Fahrenheit even when the spa shows Celsius."""
-    assert models.command_temperature(40.0, False) == 104.0
-    # 38.5C is 101.3F, which the portal rounds to the nearest half degree.
-    assert models.command_temperature(38.5, False) == 101.5
+def test_celsius_targets_are_sent_as_whole_fahrenheit():
+    """Observed live: 100.5F was accepted but the spa stored 100.
+
+    So a Celsius target goes out as the nearest whole degree Fahrenheit.
+    """
+    assert models.command_temperature(40.0, celsius=True) == 104.0
+    assert models.command_temperature(38.5, celsius=True) == 101.0
+    assert models.command_temperature(37.5, celsius=True) == 100.0
+    # 38.0 has no whole-degree equivalent (100F reads 37.5, 101F reads 38.5).
+    assert models.command_temperature(38.0, celsius=True) == 100.0
+
+
+def test_every_displayable_celsius_value_round_trips():
+    """Choosing any Celsius value the spa shows sets the degree that shows it."""
+    for fahrenheit in range(80, 105):
+        shown = models.portal_celsius(fahrenheit)
+        assert models.command_temperature(shown, celsius=True) == fahrenheit, shown
+
+
+def test_targets_are_clamped_to_the_fahrenheit_limits():
+    """A target past the range limits is pulled back inside them."""
+    assert models.command_temperature(26.0, True, low=80, high=104) == 80
+    assert models.command_temperature(110, False, low=80, high=104) == 104
 
 
 # --- heater mode -------------------------------------------------------------

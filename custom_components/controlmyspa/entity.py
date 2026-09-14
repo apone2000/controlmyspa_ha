@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+from homeassistant.const import UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityDescription
@@ -52,6 +53,19 @@ class ControlMySpaEntity(CoordinatorEntity[ControlMySpaCoordinator]):
     def available(self) -> bool:
         """Withhold readings while the spa is offline or reporting stale data."""
         return super().available and self.spa.available
+
+    @property
+    def display_celsius(self) -> bool:
+        """Return True when temperatures should be given in Celsius.
+
+        Always for an API reporting Celsius. Otherwise whenever Home Assistant
+        itself uses Celsius, so a reading can carry the portal's half-degree
+        rounding instead of Home Assistant converting it exactly.
+        """
+        return (
+            not self.spa.fahrenheit
+            or self.hass.config.units.temperature_unit == UnitOfTemperature.CELSIUS
+        )
 
 
 class ControlMySpaComponentEntity(ControlMySpaEntity):

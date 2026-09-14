@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
 from .entity import ControlMySpaEntity
-from .models import HEATER_MODES, SpaState, heater_mode_state
+from .models import HEATER_MODES, SpaState, display_temperature, heater_mode_state
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -156,24 +156,27 @@ class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
-        """Return the unit the API actually sends.
+        """Return the unit the value is given in.
 
-        Home Assistant converts to whatever the user's system prefers, so the
-        job here is to declare the payload's own unit honestly rather than to
-        convert anything.
+        A Celsius Home Assistant gets Celsius directly, with the portal's
+        half-degree rounding, instead of an exact conversion of the Fahrenheit
+        reading that would disagree with the spa's own panel.
         """
         if self.entity_description.is_temperature:
             return (
-                UnitOfTemperature.FAHRENHEIT
-                if self.spa.fahrenheit
-                else UnitOfTemperature.CELSIUS
+                UnitOfTemperature.CELSIUS
+                if self.display_celsius
+                else UnitOfTemperature.FAHRENHEIT
             )
         return self.entity_description.native_unit_of_measurement
 
     @property
     def native_value(self) -> Any:
         """Return the current value."""
-        return self.entity_description.value_fn(self.spa)
+        value = self.entity_description.value_fn(self.spa)
+        if self.entity_description.is_temperature:
+            return display_temperature(value, self.spa.fahrenheit, self.display_celsius)
+        return value
 
     @property
     def available(self) -> bool:
