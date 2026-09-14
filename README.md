@@ -318,6 +318,10 @@ the portal's own JavaScript; each will be verified against a real spa with
   reports every 2–3 minutes.
 - **Ready / Rest switch** — a one-tap toggle alongside the Heat mode select and
   the thermostat presets: on for Ready, off for Rest.
+- **Panel lock** — lock and unlock the spa's control panel, and its
+  temperature setting, from Home Assistant; the current lock state is already
+  shown. (`panel/state` with `LOCK_PANEL` / `UNLOCK_PANEL` /
+  `LOCK_TEMP_SETTING` / `UNLOCK_TEMP_SETTING`.)
 - **Keep the held water temperature across a restart**, so it is not unknown
   until the pump next runs.
 
