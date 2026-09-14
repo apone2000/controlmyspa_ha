@@ -80,7 +80,10 @@ stored in Home Assistant's encrypted config entry store, and if the password is
 ever rejected later Home Assistant prompts you to re-authenticate rather than
 silently going offline.
 
-The polling interval defaults to 30 seconds and can be changed via **Configure**
+The polling interval defaults to 5 minutes — the spa itself only reports to the
+cloud every 2–3 minutes, so changes made at the spa's panel reach Home Assistant
+within a few minutes either way, while commands sent from Home Assistant show
+immediately. It can be changed via **Configure**
 on the integration (10–600 seconds). The cloud service is not a local device —
 polling every few seconds gains little and loads someone else's API.
 

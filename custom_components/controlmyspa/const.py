@@ -35,7 +35,10 @@ REQUEST_TIMEOUT: Final = 20
 TOKEN_EXPIRY_MARGIN: Final = 300
 
 CONF_SCAN_INTERVAL: Final = "scan_interval"
-DEFAULT_SCAN_INTERVAL: Final = 30
+# The spa reports to the cloud only every two to three minutes, so polling
+# faster mostly re-reads the same data. Commands sent from Home Assistant are
+# unaffected: they show at once and are confirmed after COMMAND_REFRESH_DELAY.
+DEFAULT_SCAN_INTERVAL: Final = 300
 MIN_SCAN_INTERVAL: Final = 10
 MAX_SCAN_INTERVAL: Final = 600
 
