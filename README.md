@@ -76,9 +76,10 @@ with the same email and password you use in the ControlMySpa app.
 
 Credentials are verified before the entry is created, so a wrong password fails
 immediately with a clear message rather than producing a broken device. They are
-stored in Home Assistant's encrypted config entry store, and if the password is
-ever rejected later Home Assistant prompts you to re-authenticate rather than
-silently going offline.
+stored in the integration's config entry, like any other integration's, and if
+the password is ever rejected later Home Assistant prompts you to
+re-authenticate rather than silently going offline. See [SECURITY.md](SECURITY.md)
+for how credentials and tokens are handled, and how to report a vulnerability.
 
 The polling interval defaults to **5 minutes** and can be changed via
 **Configure** on the integration (10–600 seconds); a change applies as soon as
