@@ -47,7 +47,14 @@
       "target_temp": { "name": "Target temperature" },
       "ambient_temp": { "name": "Ambient temperature" },
       "high_limit_temp": { "name": "High limit temperature" },
-      "heater_mode": { "name": "Heater mode" },
+      "heater_mode": {
+        "name": "Heater mode",
+        "state": {
+          "ready": "Ready",
+          "rest": "Rest",
+          "ready_rest": "Ready-in-Rest"
+        }
+      },
       "temp_range": { "name": "Temperature range" },
       "run_mode": { "name": "Run mode" },
       "error_code": { "name": "Error code" },
@@ -73,6 +80,23 @@
       "temp_lock": { "name": "Temperature lock" },
       "settings_lock": { "name": "Settings lock" },
       "maintenance_locked": { "name": "Maintenance lock" }
+    },
+    "light": {
+      "light": { "name": "Light" },
+      "light_numbered": { "name": "Light {number}" }
+    },
+    "switch": {
+      "blower": { "name": "Blower" },
+      "blower_numbered": { "name": "Blower {number}" }
+    },
+    "select": {
+      "heat_mode": {
+        "name": "Heat mode",
+        "state": {
+          "ready": "Ready",
+          "rest": "Rest"
+        }
+      }
     }
   }
 }

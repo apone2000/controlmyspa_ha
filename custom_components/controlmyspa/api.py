@@ -17,6 +17,8 @@ from typing import Any
 import aiohttp
 
 from .const import (
+    COMMAND_VIA,
+    ENDPOINT_COMMANDS,
     ENDPOINT_LOGIN,
     ENDPOINT_REFRESH,
     ENDPOINT_SPAS,
@@ -41,6 +43,14 @@ class ControlMySpaAuthError(ControlMySpaError):
 
 class ControlMySpaNoSpaError(ControlMySpaError):
     """Authentication succeeded but the account exposes no spa."""
+
+
+class ControlMySpaCommandError(ControlMySpaError):
+    """The service received a command but did not carry it out.
+
+    Observed live as a 503 whose message is a Redis out-of-memory refusal from
+    the service's own backend, so the message is kept for the user to see.
+    """
 
 
 def decode_jwt_expiry(token: str) -> float | None:
@@ -192,16 +202,34 @@ class ControlMySpaClient:
                 return
             await self.async_login()
 
-    async def _async_get(self, url: str, params: dict[str, Any] | None = None) -> Any:
-        """Perform an authenticated GET, retrying once after a 401."""
+    async def _async_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> tuple[int, Any]:
+        """Perform an authenticated request, retrying once after a 401.
+
+        Returns the status with the decoded body rather than raising on it:
+        a failed read and a refused command mean different things, so the
+        caller decides. Only auth and transport failures are raised here.
+        """
         await self.async_ensure_token()
 
+        send = self._session.get if method == "GET" else self._session.post
         for attempt in (1, 2):
-            headers = {"Authorization": f"Bearer {self._access_token}"}
+            kwargs: dict[str, Any] = {
+                "headers": {"Authorization": f"Bearer {self._access_token}"},
+                "timeout": self._timeout,
+            }
+            if params is not None:
+                kwargs["params"] = params
+            if payload is not None:
+                kwargs["json"] = payload
             try:
-                async with self._session.get(
-                    url, headers=headers, params=params, timeout=self._timeout
-                ) as response:
+                async with send(url, **kwargs) as response:
                     if response.status == 401 and attempt == 1:
                         # Token rejected earlier than its own expiry claimed.
                         _LOGGER.debug("Token rejected; re-authenticating")
@@ -210,8 +238,12 @@ class ControlMySpaClient:
                         continue
                     if response.status in (401, 403):
                         raise ControlMySpaAuthError("Access denied by the API")
-                    response.raise_for_status()
-                    return await response.json()
+                    try:
+                        body = await response.json(content_type=None)
+                    except ValueError:
+                        # Error pages are not always JSON; the status still counts.
+                        body = None
+                    return response.status, body
             except asyncio.TimeoutError as err:
                 raise ControlMySpaConnectionError(
                     "Timed out contacting the API"
@@ -222,6 +254,28 @@ class ControlMySpaClient:
                 ) from err
 
         raise ControlMySpaAuthError("Could not authenticate against the API")
+
+    async def _async_get(self, url: str, params: dict[str, Any] | None = None) -> Any:
+        """Perform an authenticated GET and return the body of a success."""
+        status, body = await self._async_request("GET", url, params=params)
+        if status >= 400:
+            raise ControlMySpaConnectionError(f"The API answered {status}")
+        return body
+
+    async def _async_command(self, path: str, payload: dict[str, Any]) -> None:
+        """Send a command, raising unless the service accepted it.
+
+        A success is a 2xx whose envelope does not say otherwise; the service
+        answers ``{"data": {"success": true}}`` when it acts.
+        """
+        status, body = await self._async_request(
+            "POST", f"{ENDPOINT_COMMANDS}/{path}", payload=payload
+        )
+        envelope = body if isinstance(body, dict) else {}
+        success = (envelope.get("data") or {}).get("success")
+        if status < 300 and success is not False:
+            return
+        raise ControlMySpaCommandError(envelope.get("message") or f"HTTP {status}")
 
     async def async_get_spa(self) -> dict[str, Any]:
         """Return the raw record for the account's active spa.
@@ -239,3 +293,41 @@ class ControlMySpaClient:
             if spa.get("isDefault"):
                 return spa
         return spas[0]
+
+    async def async_get_current_state(self, spa_id: str) -> dict[str, Any]:
+        """Return the live state record the portal drives its controls from.
+
+        Unlike the /web/spas record, this carries ``components``: every
+        controllable device with its current value.
+        """
+        body = await self._async_get(f"{ENDPOINT_SPAS}/{spa_id}/current-state")
+        return (body or {}).get("data") or {}
+
+    async def async_set_component_state(
+        self,
+        spa_id: str,
+        component_type: str,
+        state: str,
+        device_number: int | None = None,
+    ) -> None:
+        """Set a light, blower, pump or similar component.
+
+        ``component_type`` is the command token (``light``, ``blower``, ``jet``
+        ...), not the componentType the state record reports.
+        """
+        payload: dict[str, Any] = {
+            "spaId": spa_id,
+            "via": COMMAND_VIA,
+            "componentType": component_type,
+            "state": state,
+        }
+        if device_number is not None:
+            payload["deviceNumber"] = device_number
+        await self._async_command("component-state", payload)
+
+    async def async_set_heater_mode(self, spa_id: str, mode: str) -> None:
+        """Switch the heater between READY and REST."""
+        await self._async_command(
+            "temperature/heater-mode",
+            {"spaId": spa_id, "via": COMMAND_VIA, "mode": mode},
+        )

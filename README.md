@@ -8,9 +8,9 @@ entities. There is no MQTT broker, no add-on, and no external process to run —
 it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
-> **Status: read-only.** This release publishes spa state into Home Assistant.
-> Setting the temperature and controlling the light are not implemented yet —
-> see [Write support](#write-support).
+> **Status: early control.** Spa state is published into Home Assistant, and the
+> light, blower and heat mode can be controlled. Setting the temperature is not
+> implemented yet — see [Write support](#write-support).
 
 ## Requirements
 
@@ -121,11 +121,22 @@ health, last uplink, and the filter / water-change / ClearRay reminder counters.
 soak mode, cleanup cycle, priming mode, and the panel / temperature / settings
 / maintenance locks.
 
-A light entity is created **only** on spas with Tri-Zone Lighting, which report
-`primaryTZLStatus` as present. Spas with ordinary lights report
-`TZL_NOT_PRESENT`: those lights work, but their state lived in the removed
-`components` array and has no replacement in this API. No entity is created
-rather than one reporting a confident wrong value — see below.
+**Controls** — light (on/off), blower (on/off switch), and heat mode (Ready /
+Rest). The light and blower are created from the devices the spa itself
+reports, so a spa without a blower gets no blower switch, and a spa with
+several lights gets them numbered. Both switch on at their strongest setting.
+
+The **Heater mode** sensor reports Ready, Rest, or Ready-in-Rest. Ready-in-Rest
+means the spa is in Rest mode but the jets have been used, so it heats for an
+hour and then returns to Rest by itself. It cannot be chosen, so the **Heat
+mode** control shows Rest meanwhile.
+
+A command's effect shows immediately and is re-read five seconds later to
+confirm it. If ControlMySpa refuses a command, Home Assistant shows the
+service's own message and the state is left as it was.
+
+Spas with Tri-Zone Lighting also get a **Light** binary sensor from their TZL
+status.
 
 Less commonly useful entities are created disabled; enable them from the device
 page if you want them.
@@ -183,33 +194,39 @@ as-is. Use `scripts/inspect_payload.py` instead when you want to show someone
 the payload shape: it strips identifying fields first. No password or token is
 ever printed by either script.
 
+`scripts/verify_controls.py` runs the integration's own client and parsing
+against your spa and prints what the light, blower and heat mode entities would
+show. It is read-only unless given `--light`, `--blower` or `--heat-mode`, which
+send that one command and re-read until the spa reports it:
+
+```bash
+python scripts/verify_controls.py --email you@example.com
+python scripts/verify_controls.py --email you@example.com --blower on
+```
+
 ## Write support
 
-Commands go to `POST /web/spa-commands`, but **the request body format is not
-publicly documented and has not yet been captured**, so no write path is
-implemented. Guessing at the payload would produce an integration whose controls
-silently do nothing, which is worse than not offering them.
+Command formats were recovered from the ControlMySpa web portal's own
+JavaScript rather than guessed, and the light, blower and heat mode commands
+were verified against a real spa:
 
-Capturing it is straightforward: open the ControlMySpa web portal with the
-browser's network inspector recording, filter to XHR/fetch, clear the log, and
-toggle the light once. The single non-`GET` request that appears is the answer —
-its path and request body field names are all that is needed.
+```json
+POST /web/spa-commands/component-state
+{"spaId": "...", "via": "WEB", "componentType": "light", "state": "HIGH", "deviceNumber": 0}
 
-Once that is known, target temperature and light control can be added, and the
-separate temperature sensors replaced by a proper climate entity.
+POST /web/spa-commands/temperature/heater-mode
+{"spaId": "...", "via": "WEB", "mode": "REST"}
+```
 
-Jets, blowers, pumps, ozone, and ordinary (non-TZL) light state are a larger
-unknown: the `components` array the older API exposed is absent from the
-current one, and twelve read endpoints were probed without finding a
-replacement. `/web/broker` and `/web/gateway-broker` both return `403` rather
-than `404` — the routes exist, but an ordinary account token is not permitted.
+Device state comes from `GET /web/spas/{id}/current-state`, whose `components`
+array lists every controllable device — lights, pumps, blower, circulation
+pump, filters — with its current value and the values it accepts. It reflected
+an accepted command within three seconds when tested.
 
-One promising lead: `gatewayBroker.brokerId` expands to a full broker record
-rather than an identifier, naming `iot.controlmyspa.com:8883` (MQTT over TLS)
-as the spa's push channel, and `lastMqttMessages` shows the traffic types
-flowing over it — `SPA_STATE`, `TZL_STATE`, `FAULT_LOGS`. If those messages
-carry full component state, subscribing would restore both live updates and the
-missing devices. Topic structure and broker credentials are unknown.
+Not implemented yet: target temperature, temperature range, and jets. Their
+endpoints are known (`temperature/value`, `temperature/range`, and
+`component-state` with `jet`) but untested. Once temperature works, the
+separate temperature sensors can become a proper climate entity.
 
 ## Development
 

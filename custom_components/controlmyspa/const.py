@@ -15,6 +15,16 @@ ENDPOINT_LOGIN: Final = f"{API_ROOT}/auth/login"
 ENDPOINT_REFRESH: Final = f"{API_ROOT}/auth/refresh"
 ENDPOINT_PROFILE: Final = f"{API_ROOT}/auth/profile"
 ENDPOINT_SPAS: Final = f"{API_ROOT}/spas"
+ENDPOINT_COMMANDS: Final = f"{API_ROOT}/spa-commands"
+
+# Every command names its origin. The portal sends WEB; the other values the
+# service accepts are MOBILE, GATEWAY, SCHEDULED and ALEXA.
+COMMAND_VIA: Final = "WEB"
+
+# How long to wait after an accepted command before re-reading state. The
+# service reflected commands within three seconds when tested, so reading back
+# immediately would fetch the old value and briefly undo the optimistic update.
+COMMAND_REFRESH_DELAY: Final = 5
 
 # Requests hang indefinitely without this; upstream had no timeout set and a
 # single bad gateway stalled the poll loop for a full minute.

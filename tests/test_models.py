@@ -284,6 +284,176 @@ def test_tzl_present_without_zone_data_is_unknown():
     assert state.light_on is None
 
 
+# --- components --------------------------------------------------------------
+
+# Shaped like the live spa's current-state components, trimmed to one of each.
+LIVE_COMPONENTS = [
+    {"componentType": "GATEWAY", "value": "OFF"},
+    {
+        "componentType": "FILTER",
+        "port": "0",
+        "value": "ON",
+        "availableValues": ["OFF", "ON", "DISABLED"],
+    },
+    {
+        "componentType": "PUMP",
+        "port": "1",
+        "value": "OFF",
+        "availableValues": ["OFF", "LOW", "HIGH"],
+    },
+    {
+        "componentType": "PUMP",
+        "port": "0",
+        "value": "OFF",
+        "availableValues": ["OFF", "LOW", "HIGH"],
+    },
+    {
+        "componentType": "CIRCULATION_PUMP",
+        "value": "OFF",
+        "availableValues": ["OFF", "HIGH"],
+    },
+    {
+        "componentType": "BLOWER",
+        "port": 0,
+        "value": "OFF",
+        "availableValues": ["OFF", "LOW", "MED", "HIGH"],
+    },
+    {
+        "componentType": "LIGHT",
+        "port": 0,
+        "value": "HIGH",
+        "availableValues": ["OFF", "HIGH"],
+    },
+]
+
+
+def _with_components(components=None, **current_state):
+    """Build a snapshot from both records, as the coordinator does."""
+    state = {"components": LIVE_COMPONENTS if components is None else components}
+    state.update(current_state)
+    return SpaState.from_api(_spa(), state)
+
+
+def test_components_are_parsed_from_current_state():
+    """The light is found by type and port with its value decoded."""
+    light = _with_components().component("LIGHT", 0)
+
+    assert light is not None
+    assert light.value == "HIGH"
+    assert light.is_on is True
+    assert light.available_values == ("OFF", "HIGH")
+
+
+def test_without_current_state_components_are_unknown():
+    """Unread is distinct from a spa that reports nothing."""
+    state = SpaState.from_api(_spa())
+
+    assert state.components is None
+    assert state.components_of("LIGHT") == []
+    assert SpaState.from_api(_spa(), {}).components == ()
+
+
+def test_string_and_integer_ports_are_equivalent():
+    """Ports arrive either way and must match the same lookups."""
+    state = _with_components()
+
+    assert state.component("FILTER", 0) is not None
+    assert [c.port for c in state.components_of("PUMP")] == [0, 1]
+
+
+def test_malformed_component_entries_are_skipped():
+    """A bad entry must not take the rest of the array down with it."""
+    state = _with_components(["junk", {}, {"componentType": "LIGHT", "port": 0}])
+
+    assert [c.component_type for c in state.components] == ["LIGHT"]
+    assert state.component("LIGHT", 0).value == "OFF"
+
+
+def test_component_values_decode_per_type():
+    """Numbers, booleans and words all fold into the command vocabulary."""
+    normalise = models.normalise_component_value
+
+    assert normalise("3", "LIGHT") == "HIGH"
+    assert normalise("2", "PUMP") == "HIGH"
+    assert normalise("1", "OZONE") == "ON"
+    assert normalise(True, "OZONE") == "ON"
+    assert normalise("low", "BLOWER") == "LOW"
+    assert normalise("", "LIGHT") == "OFF"
+    assert normalise("9", "LIGHT") == "OFF"
+    assert normalise("sideways", "LIGHT") == "OFF"
+
+
+def test_disabled_reads_as_off():
+    """A disabled filter cycle is not running."""
+    component = models.Component("FILTER", 1, "DISABLED", ("OFF", "ON", "DISABLED"))
+
+    assert component.is_on is False
+
+
+def test_on_value_is_the_strongest_setting():
+    """Verified live: HIGH is what switches an OFF/HIGH light on."""
+    state = _with_components()
+
+    assert state.component("LIGHT", 0).on_value == "HIGH"
+    assert state.component("BLOWER", 0).on_value == "HIGH"
+    shuffled = models.Component("BLOWER", 0, "OFF", ("HIGH", "OFF", "LOW"))
+    assert shuffled.on_value == "HIGH"
+    assert models.Component("OZONE", None, "OFF").on_value == "ON"
+
+
+def test_components_are_addressed_as_the_portal_addresses_them():
+    """Command tokens and deviceNumber follow the portal's own mapping."""
+    state = _with_components()
+
+    light = state.component("LIGHT", 0)
+    assert (light.command_type, light.device_number) == ("light", 0)
+    circ = state.component("CIRCULATION_PUMP", None)
+    assert (circ.command_type, circ.device_number) == ("circ-pump", None)
+    pump = state.component("PUMP", 1)
+    assert (pump.command_type, pump.device_number) == ("jet", 1)
+    assert state.component("GATEWAY", None).command_type is None
+
+
+def test_with_component_value_leaves_the_original_untouched():
+    """Optimistic updates build a new snapshot rather than editing the old."""
+    state = _with_components()
+
+    updated = state.with_component_value("LIGHT", 0, "OFF")
+
+    assert updated.component("LIGHT", 0).value == "OFF"
+    assert state.component("LIGHT", 0).value == "HIGH"
+    assert updated.component("BLOWER", 0) == state.component("BLOWER", 0)
+    unread = SpaState.from_api(_spa())
+    assert unread.with_component_value("LIGHT", 0, "OFF") is unread
+
+
+# --- heater mode -------------------------------------------------------------
+
+
+def test_heater_mode_prefers_current_state():
+    """The portal's heat mode control reads current-state."""
+    assert _with_components(heaterMode="REST").heater_mode == "REST"
+    assert _with_components().heater_mode == "READY"
+
+
+def test_heater_mode_states_include_ready_in_rest():
+    """The sensor reports all three modes, and nothing it does not know."""
+    assert models.heater_mode_state("READY") == "ready"
+    assert models.heater_mode_state("REST") == "rest"
+    assert models.heater_mode_state("READY_REST") == "ready_rest"
+    assert models.heater_mode_state("BOOST") is None
+    assert models.heater_mode_state(None) is None
+
+
+def test_ready_in_rest_selects_as_rest():
+    """Ready-in-Rest is Rest mode with the jets used; it cannot be chosen."""
+    assert models.settable_heater_mode("READY") == "ready"
+    assert models.settable_heater_mode("REST") == "rest"
+    assert models.settable_heater_mode("READY_REST") == "rest"
+    assert models.settable_heater_mode("BOOST") is None
+    assert models.settable_heater_mode(None) is None
+
+
 # --- identity and diagnostics ------------------------------------------------
 
 

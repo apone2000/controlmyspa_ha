@@ -10,7 +10,13 @@ from .api import ControlMySpaClient
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from .coordinator import ControlMySpaConfigEntry, ControlMySpaCoordinator
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.LIGHT,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(

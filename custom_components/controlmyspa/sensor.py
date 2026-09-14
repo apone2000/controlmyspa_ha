@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
 from .entity import ControlMySpaEntity
-from .models import SpaState
+from .models import HEATER_MODES, SpaState, heater_mode_state
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -69,7 +69,9 @@ SENSORS: tuple[ControlMySpaSensorDescription, ...] = (
     ControlMySpaSensorDescription(
         key="heater_mode",
         translation_key="heater_mode",
-        value_fn=lambda spa: spa.heater_mode,
+        device_class=SensorDeviceClass.ENUM,
+        options=[mode.lower() for mode in HEATER_MODES],
+        value_fn=lambda spa: heater_mode_state(spa.heater_mode),
     ),
     ControlMySpaSensorDescription(
         key="temp_range",
