@@ -80,20 +80,24 @@ stored in Home Assistant's encrypted config entry store, and if the password is
 ever rejected later Home Assistant prompts you to re-authenticate rather than
 silently going offline.
 
-The polling interval defaults to 5 minutes — the spa itself only reports to the
-cloud every 2–3 minutes, so changes made at the spa's panel reach Home Assistant
-within a few minutes either way, while commands sent from Home Assistant show
-immediately. It can be changed via **Configure**
-on the integration (10–600 seconds). The cloud service is not a local device —
-polling every few seconds gains little and loads someone else's API.
+The polling interval defaults to **5 minutes** and can be changed via
+**Configure** on the integration (10–600 seconds); a change applies as soon as
+it is saved. If the interval has ever been saved there, that value is kept and
+the default does not apply.
+
+The spa itself only reports to the cloud every 2–3 minutes, so faster polling
+mostly re-reads the same data and loads someone else's API. Changes made at the
+spa's panel or in the app reach Home Assistant at the next poll. Commands sent
+*from* Home Assistant show immediately whatever the interval, and are confirmed
+by a re-read five seconds later.
 
 ### Checking it worked
 
 You should get one device named **Spa**, showing your controller type as the
-model and its firmware version. Water temperature should match what the spa's
-own panel shows. If your panel reads in Celsius and this reads the same, the
-unit handling is working — see [Temperature units](#temperature-units) for why
-that is worth checking.
+model and its firmware version, and a thermostat named **Spa** on it. Water
+temperature should match what the spa's own panel shows. If your panel reads in
+Celsius and this reads the same, the unit handling is working — see
+[Temperature units](#temperature-units) for why that is worth checking.
 
 ### If it does not appear
 
@@ -121,8 +125,8 @@ limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
 health, last uplink, and the filter / water-change / ClearRay reminder counters.
 
 **Binary sensors** — online, heating, temperature reached, error, eco mode,
-soak mode, cleanup cycle, priming mode, and the panel / temperature / settings
-/ maintenance locks.
+soak mode, cleanup cycle, priming mode, water temperature held, and the panel /
+temperature / settings / maintenance locks.
 
 **Controls** — a thermostat, light (on/off), blower (on/off switch), and heat
 mode (Ready / Rest).
@@ -172,10 +176,15 @@ plainly Fahrenheit. The `alerts` block carries the same contradiction under a
 differently misspelled `celcius` key.
 
 The unit is therefore inferred from `setupParams`: every spa tops out near 40C
-/ 104F, so a maximum above 50 can only be Fahrenheit. The integration then
-declares that as the native unit and lets Home Assistant convert to whatever
-your system is set to. If your spa displays 38C, this reports 38C — by way of
-100F, honestly labelled.
+/ 104F, so a maximum above 50 can only be Fahrenheit.
+
+Displayed temperatures follow Home Assistant's own unit system (Settings →
+System → General). A Fahrenheit install shows the spa's whole degrees as they
+are. A Celsius install gets Celsius directly from the integration, rounded the
+way the portal and the spa's panel round it rather than converted exactly — see
+[Entities](#entities). There is deliberately no separate °C/°F option: Home
+Assistant converts climate and sensor temperatures to its unit system whatever
+an integration reports, so such an option could not change what you see.
 
 ### Unreported fields
 
@@ -233,14 +242,26 @@ the payload shape: it strips identifying fields first. No password or token is
 ever printed by either script.
 
 `scripts/verify_controls.py` runs the integration's own client and parsing
-against your spa and prints what the light, blower and heat mode entities would
-show. It is read-only unless given `--light`, `--blower`, `--heat-mode` or `--temp`, which
-send that one command and re-read until the spa reports it:
+against your spa and prints what the thermostat, light, blower and heat mode
+entities would show — the way to check a change before releasing it. It is
+read-only unless given one of `--light`, `--blower`, `--heat-mode`, `--temp`
+(in the spa's own unit) or `--temp-c` (Celsius, converted as a Celsius Home
+Assistant would), which sends that one command and re-reads until the spa
+reports it:
 
 ```bash
 python scripts/verify_controls.py --email you@example.com
 python scripts/verify_controls.py --email you@example.com --blower on
+python scripts/verify_controls.py --email you@example.com --temp-c 38.5
 ```
+
+`scripts/light_control.py` is a lower-level diagnostic that talks to the
+component endpoints directly. Its `--watch SECONDS` polls and reports every
+component change — the way to see whether, and how quickly, a change made at
+the spa's panel reaches the cloud. `--raw` dumps the components array (with
+identifying fields redacted) and `--mqtt` the spa's recent uplinks.
+
+All the scripts read the password from `CONTROLMYSPA_PASSWORD` or prompt for it.
 
 ## Write support
 
@@ -260,8 +281,9 @@ POST /web/spa-commands/temperature/value
 ```
 
 The temperature `value` is always Fahrenheit, even for spas displayed in
-Celsius: the portal converts before sending and rounds to the nearest half
-degree.
+Celsius. The portal converts and sends half degrees, but the spa keeps only
+whole ones (100.5 was accepted and stored as 100), so the integration sends the
+nearest whole degree.
 
 Device state comes from `GET /web/spas/{id}/current-state`, whose `components`
 array lists every controllable device — lights, pumps, blower, circulation
@@ -270,7 +292,40 @@ an accepted command within three seconds when tested.
 
 Not implemented yet: switching the temperature range, and jets. Their payloads
 are known (`temperature/range` with `{spaId, via, range}` as `HIGH` or `LOW`,
-and `component-state` with `jet`) but untested.
+and `component-state` with `jet`) but untested. Reading and setting the spa's
+clock (`POST /web/spa-commands/time`) is planned.
+
+## Changelog
+
+### Unreleased (on `develop`)
+
+- **Celsius display matches the spa.** In a Celsius Home Assistant, the
+  thermostat and temperature sensors round as the portal and panel do (100 °F
+  reads 37.5 °C, not 37.8), and the target steps in half degrees.
+- **Celsius targets set exactly.** Targets are sent as whole °F, because the
+  spa discards half degrees.
+- **Ready / Rest thermostat presets**, so the thermostat row reads e.g.
+  "Idle (Heat - Rest)".
+- **No more impossible water temperature.** The ~262 °F value the spa reports
+  when its pump has not run (panel shows `---`) is ignored, and the last good
+  reading is held instead. New **Water temperature held** diagnostic sensor and
+  `measured_at` attribute show when that is happening.
+- **Polls every 5 minutes by default** instead of every 30 seconds.
+- `scripts/verify_controls.py --temp-c`, and `scripts/light_control.py` for
+  component-level debugging.
+
+### v0.2.0
+
+- **Controls:** thermostat (target temperature), light, blower, and heat mode
+  (Ready / Rest), all verified against a real spa.
+- Device state read from `/web/spas/{id}/current-state`.
+- **Breaking:** the Heater mode sensor now reports `ready` / `rest` /
+  `ready_rest` instead of `READY` / `REST` / `READY_REST`.
+
+### v0.1.0
+
+- Read-only release: temperatures, heater and run state, locks, reminders, and
+  connectivity diagnostics.
 
 ## Development
 
