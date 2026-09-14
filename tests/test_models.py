@@ -113,6 +113,35 @@ def test_blank_temperatures_become_none_rather_than_raising():
     assert state.target_temp is None
 
 
+def test_no_reading_sentinel_is_unknown_not_a_temperature():
+    """Observed live: shown as 127.8C while the panel read "---".
+
+    The pump had not run, so the sensor had no water reading. The portal
+    discards anything above 150F or at or below 1F.
+    """
+    assert SpaState.from_api(_spa(currentTemp="262.00")).current_temp is None
+    assert SpaState.from_api(_spa(currentTemp="150.50")).current_temp is None
+    assert SpaState.from_api(_spa(currentTemp="1.00")).current_temp is None
+    assert SpaState.from_api(_spa(currentTemp="150.00")).current_temp == 150.0
+    assert SpaState.from_api(_spa(currentTemp="96.00")).current_temp == 96.0
+
+
+def test_no_reading_sentinel_is_caught_in_celsius_data_too():
+    """The window is applied in Fahrenheit whatever unit the data is in."""
+    metric = {
+        "lowRangeLow": 10,
+        "lowRangeHigh": 37,
+        "highRangeLow": 26,
+        "highRangeHigh": 40,
+    }
+    assert SpaState.from_api(
+        _spa(currentTemp="127.50", setupParams=metric)
+    ).current_temp is None
+    assert SpaState.from_api(
+        _spa(currentTemp="38.00", setupParams=metric)
+    ).current_temp == 38.0
+
+
 def test_high_range_selects_high_setup_limits():
     """Climate limits follow the active temperature range."""
     state = SpaState.from_api(_spa(tempRange="HIGH"))

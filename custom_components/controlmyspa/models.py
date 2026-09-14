@@ -56,6 +56,13 @@ _ZERO_MEANS_UNREPORTED = True
 
 TZL_ABSENT = "TZL_NOT_PRESENT"
 
+# The portal discards a current water temperature outside this window as "no
+# reading". The spa's sensor sits in the plumbing, so once the pump has not run
+# for a while -- routine in Rest mode between filter cycles -- the panel shows
+# "---" and the API reports a sentinel around 262F instead.
+WATER_TEMP_NO_READING_AT_OR_BELOW_F = 1.0
+WATER_TEMP_NO_READING_ABOVE_F = 150.0
+
 
 def _as_float(value: Any) -> float | None:
     """Coerce an API temperature to a float.
@@ -75,6 +82,24 @@ def _as_float_reported(value: Any) -> float | None:
     """Coerce to a float, treating zero as an unreported field."""
     result = _as_float(value)
     if result == 0.0 and _ZERO_MEANS_UNREPORTED:
+        return None
+    return result
+
+
+def _as_water_temp(value: Any, fahrenheit: bool) -> float | None:
+    """Coerce the current water temperature, dropping no-reading sentinels.
+
+    Unknown is what the spa's own panel shows at these times, so it is
+    reported as unknown rather than as the last value or the sentinel.
+    """
+    result = _as_float(value)
+    if result is None:
+        return None
+    as_fahrenheit = result if fahrenheit else result * 9 / 5 + 32
+    if (
+        as_fahrenheit <= WATER_TEMP_NO_READING_AT_OR_BELOW_F
+        or as_fahrenheit > WATER_TEMP_NO_READING_ABOVE_F
+    ):
         return None
     return result
 
@@ -449,7 +474,7 @@ class SpaState:
             spa_id=str(spa.get("_id") or ""),
             serial_number=spa.get("serialNumber") or current.get("spaSerialNumber"),
             online=bool(current.get("online")),
-            current_temp=_as_float(current.get("currentTemp")),
+            current_temp=_as_water_temp(current.get("currentTemp"), fahrenheit),
             target_temp=target_temp,
             ambient_temp=_as_float_reported(current.get("ambientTemp")),
             high_limit_temp=_as_float_reported(current.get("hiLimitTemp")),
