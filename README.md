@@ -290,10 +290,35 @@ array lists every controllable device — lights, pumps, blower, circulation
 pump, filters — with its current value and the values it accepts. It reflected
 an accepted command within three seconds when tested.
 
-Not implemented yet: switching the temperature range, and jets. Their payloads
-are known (`temperature/range` with `{spaId, via, range}` as `HIGH` or `LOW`,
-and `component-state` with `jet`) but untested. Reading and setting the spa's
-clock (`POST /web/spa-commands/time`) is planned.
+Everything else the portal can do is listed under [Roadmap](#roadmap).
+
+## Roadmap
+
+Planned, not yet built. Command formats for all of these were recovered from
+the portal's own JavaScript; each will be verified against a real spa with
+`scripts/verify_controls.py` before release, as the current controls were.
+
+- **Spa clock** — show the spa's current time, set it, and a **Sync time**
+  button that sets it to Home Assistant's local time in one tap, keeping the
+  spa's 12/24-hour setting. The spa keeps no seconds and does not adjust for
+  daylight saving, so a daily automation pressing Sync is worthwhile.
+  (`POST /web/spa-commands/time` with `time` as `"HH:MM"` and
+  `isMilitaryFormat`.)
+- **Temperature range** — switch between High and Low; the thermostat's
+  limits follow. (`temperature/range` with `range` as `HIGH` or `LOW`.)
+- **Jets** — control each pump at its two speeds, Low and High.
+  (`component-state` with `jet` and the pump's port.)
+- **Filter cycles 1 and 2** — set each cycle's start time, and its duration in
+  15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
+  (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
+  and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
+- **Refresh button** — re-read the spa's state immediately instead of waiting
+  for the next poll. It can only fetch what the cloud has; the spa itself
+  reports every 2–3 minutes.
+- **Ready / Rest switch** — a one-tap toggle alongside the Heat mode select and
+  the thermostat presets: on for Ready, off for Rest.
+- **Keep the held water temperature across a restart**, so it is not unknown
+  until the pump next runs.
 
 ## Changelog
 
