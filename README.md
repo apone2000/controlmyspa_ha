@@ -9,8 +9,9 @@ it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
 > **Status: early control.** Spa state is published into Home Assistant, and the
-> target temperature, light, blower, heat mode and panel lock can be controlled, and the
-> temperature range switched. Jets are not implemented yet — see [Write support](#write-support).
+> target temperature, temperature range, heat mode, light, blower and panel lock
+> can be controlled. Jets, the spa clock and filter cycles are not implemented
+> yet — see [Roadmap](#roadmap).
 
 ## Requirements
 
@@ -121,9 +122,10 @@ faster than reading Home Assistant logs. See
 
 All entities hang off a single spa device.
 
-**Sensors** — water temperature (and its raw reading), target temperature, ambient temperature, high
-limit temperature, heater mode, run mode, error code, Wi-Fi
-health, last uplink, and the filter / water-change / ClearRay reminder counters.
+**Sensors** — water temperature (and its raw reading), target temperature,
+ambient temperature, high limit temperature, heater mode, run mode, error code,
+Wi-Fi health, last uplink, and the filter / water-change / ClearRay reminder
+counters.
 
 **Binary sensors** — online, heating, temperature reached, error, eco mode,
 soak mode, cleanup cycle, priming mode, water temperature held, and the
@@ -266,17 +268,18 @@ the payload shape: it strips identifying fields first. No password or token is
 ever printed by either script.
 
 `scripts/verify_controls.py` runs the integration's own client and parsing
-against your spa and prints what the thermostat, light, blower and heat mode
-entities would show — the way to check a change before releasing it. It is
-read-only unless given one of `--light`, `--blower`, `--heat-mode`, `--temp`
-(in the spa's own unit) or `--temp-c` (Celsius, converted as a Celsius Home
-Assistant would), which sends that one command and re-reads until the spa
-reports it:
+against your spa and prints what the thermostat, temperature range, heat mode,
+light, blower and lock entities would show — the way to check a change before
+releasing it. It is read-only unless given one of `--light`, `--blower`,
+`--heat-mode`, `--temp` (in the spa's own unit), `--temp-c` (Celsius, converted
+as a Celsius Home Assistant would), `--panel-lock` or `--temp-range`, which
+sends that one command and re-reads until the spa reports it:
 
 ```bash
 python scripts/verify_controls.py --email you@example.com
 python scripts/verify_controls.py --email you@example.com --blower on
 python scripts/verify_controls.py --email you@example.com --temp-c 38.5
+python scripts/verify_controls.py --email you@example.com --temp-range low
 ```
 
 `scripts/light_control.py` is a lower-level diagnostic that talks to the
@@ -324,7 +327,7 @@ Everything else the portal can do is listed under [Roadmap](#roadmap).
 
 ## Roadmap
 
-Planned, not yet built. Command formats for all of these were recovered from
+Planned, not yet released. Command formats for all of these were recovered from
 the portal's own JavaScript; each will be verified against a real spa with
 `scripts/verify_controls.py` before release, as the current controls were.
 
@@ -336,16 +339,19 @@ the portal's own JavaScript; each will be verified against a real spa with
   `isMilitaryFormat`.)
 - **Jets** — control each pump at its two speeds, Low and High.
   (`component-state` with `jet` and the pump's port.)
-- **Filter cycles 1 and 2** — set each cycle's start time, and its duration in
-  15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
-  (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
-  and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
+- **Filter cycles 1 and 2** — each cycle's start time and duration, and turning
+  filter cycle 2 on or off (filter 1 always runs). The schedule controls are
+  built, but on the test spa a schedule change was accepted and never took
+  effect, not even when made in the ControlMySpa portal itself, so they are
+  held back while that is investigated. (`filter-cycles/schedule` with `time` as
+  `"HH:MM"` and `numOfIntervals` in 15-minute blocks;
+  `filter-cycles/toggle-filter2-state`.)
 - **Keep the held water temperature across a restart**, so it is not unknown
   until the pump next runs.
 
 ## Changelog
 
-### Unreleased
+### v0.2.4
 
 - **Ready mode switch.** A one-tap toggle for the heat mode: on for Ready, off
   for Rest.
@@ -361,6 +367,8 @@ the portal's own JavaScript; each will be verified against a real spa with
   replaces the Temperature range sensor. Update any automation that used
   `sensor.spa_temperature_range` (its states were `HIGH` / `LOW`; the select's
   are `high` / `low`), then delete the old entity from the device page.
+- `scripts/verify_controls.py --panel-lock` and `--temp-range`; it also shows
+  the lock and range values from both of the API's records.
 
 ### v0.2.3
 
@@ -437,10 +445,11 @@ and the release process do separate jobs:
 
 Cutting a release:
 
-1. Merge `develop` into `main`
-2. Bump `"version"` in `custom_components/controlmyspa/manifest.json`
+1. On `develop`, bump `"version"` in `custom_components/controlmyspa/manifest.json`
+   and rename the changelog's **Unreleased** heading to the new version
+2. Merge `develop` into `main` (fast-forward)
 3. Tag it to match, e.g. `git tag -a v0.2.0 -m "..."` and push the tag
-4. Create a GitHub release from that tag
+4. Create a GitHub release from that tag — HACS ignores a tag without one
 
 **The manifest version and the tag must match.** HACS compares them, and a
 mismatch makes updates behave unpredictably.
