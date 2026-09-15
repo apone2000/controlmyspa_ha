@@ -2,6 +2,12 @@
   "entity": {
     "button": {
       "refresh": { "default": "mdi:refresh" }
+    },
+    "switch": {
+      "ready_mode": {
+        "default": "mdi:sleep",
+        "state": { "on": "mdi:fire" }
+      }
     }
   }
 }

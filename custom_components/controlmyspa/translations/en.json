@@ -100,7 +100,8 @@
     },
     "switch": {
       "blower": { "name": "Blower" },
-      "blower_numbered": { "name": "Blower {number}" }
+      "blower_numbered": { "name": "Blower {number}" },
+      "ready_mode": { "name": "Ready mode" }
     },
     "select": {
       "heat_mode": {

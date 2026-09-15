@@ -130,7 +130,7 @@ soak mode, cleanup cycle, priming mode, water temperature held, and the panel /
 temperature / settings / maintenance locks.
 
 **Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
-(Ready / Rest), and a Refresh button.
+(Ready / Rest, as a select and as a Ready mode switch), and a Refresh button.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -157,6 +157,9 @@ The **Heater mode** sensor reports Ready, Rest, or Ready-in-Rest. Ready-in-Rest
 means the spa is in Rest mode but the jets have been used, so it heats for an
 hour and then returns to Rest by itself. It cannot be chosen, so the **Heat
 mode** control shows Rest meanwhile.
+
+**Ready mode** is the same choice as a one-tap switch: on for Ready, off for
+Rest. It reads off during Ready-in-Rest, which is Rest mode.
 
 A command's effect shows immediately and is re-read five seconds later to
 confirm it. If ControlMySpa refuses a command, Home Assistant shows the
@@ -318,8 +321,6 @@ the portal's own JavaScript; each will be verified against a real spa with
   15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
   (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
   and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
-- **Ready / Rest switch** — a one-tap toggle alongside the Heat mode select and
-  the thermostat presets: on for Ready, off for Rest.
 - **Panel lock** — lock and unlock the spa's control panel, and its
   temperature setting, from Home Assistant; the current lock state is already
   shown. (`panel/state` with `LOCK_PANEL` / `UNLOCK_PANEL` /
@@ -328,6 +329,11 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Ready mode switch.** A one-tap toggle for the heat mode: on for Ready, off
+  for Rest.
 
 ### v0.2.3
 
