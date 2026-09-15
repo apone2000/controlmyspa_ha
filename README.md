@@ -327,6 +327,11 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ## Changelog
 
+### Unreleased
+
+- **Integration icon.** A hot tub badge now shows on the Integrations page, in
+  Home Assistant 2026.3 or newer.
+
 ### v0.2.1
 
 - **Celsius display matches the spa.** In a Celsius Home Assistant, the
@@ -370,6 +375,14 @@ directly and no test contacts the live service. `tests/conftest.py` loads them
 without running the package's Home Assistant imports.
 
 Home Assistant itself requires Python 3.13+; the test suite above does not.
+
+The icon in `custom_components/controlmyspa/brand/` is rendered from
+`scripts/icon.svg`. After changing the SVG, regenerate both sizes on a Mac:
+
+```bash
+swift scripts/render_icon.swift scripts/icon.svg custom_components/controlmyspa/brand/icon.png 256
+swift scripts/render_icon.swift scripts/icon.svg custom_components/controlmyspa/brand/icon@2x.png 512
+```
 
 ## Branches and releases
 

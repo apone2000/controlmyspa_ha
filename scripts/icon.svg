@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="disc"><circle cx="256" cy="256" r="256"/></clipPath>
+  </defs>
+  <circle cx="256" cy="256" r="256" fill="#0B4F7A"/>
+  <g clip-path="url(#disc)">
+    <path d="M-32 300 q64 -30 128 0 t128 0 t128 0 t128 0 t128 0 V544 H-32 Z" fill="#1A86AE"/>
+    <path d="M-96 336 q64 30 128 0 t128 0 t128 0 t128 0 t128 0 V544 H-96 Z" fill="#34BBD3"/>
+    <g fill="#FFFFFF" fill-opacity="0.55">
+      <circle cx="222" cy="420" r="12"/>
+      <circle cx="292" cy="448" r="9"/>
+    </g>
+  </g>
+  <g fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round">
+    <path d="M186 262 C156 232 216 204 186 170"/>
+    <path d="M256 262 C222 226 290 180 256 140"/>
+    <path d="M326 262 C296 232 356 204 326 170"/>
+  </g>
+</svg>
