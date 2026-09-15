@@ -327,7 +327,7 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ## Changelog
 
-### Unreleased
+### v0.2.2
 
 - **Integration icon.** A hot tub badge now shows on the Integrations page, in
   Home Assistant 2026.3 or newer.
