@@ -129,8 +129,8 @@ health, last uplink, and the filter / water-change / ClearRay reminder counters.
 soak mode, cleanup cycle, priming mode, water temperature held, and the panel /
 temperature / settings / maintenance locks.
 
-**Controls** — a thermostat, light (on/off), blower (on/off switch), and heat
-mode (Ready / Rest).
+**Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
+(Ready / Rest), and a Refresh button.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -161,6 +161,11 @@ mode** control shows Rest meanwhile.
 A command's effect shows immediately and is re-read five seconds later to
 confirm it. If ControlMySpa refuses a command, Home Assistant shows the
 service's own message and the state is left as it was.
+
+**Refresh** re-reads the spa from ControlMySpa straight away instead of waiting
+for the next poll. It can only fetch what the cloud already has: the spa itself
+reports every two to three minutes, so pressing it more often than that mostly
+returns the same data. If the read fails, Home Assistant shows why.
 
 Spas with Tri-Zone Lighting also get a **Light** binary sensor from their TZL
 status.
@@ -313,9 +318,6 @@ the portal's own JavaScript; each will be verified against a real spa with
   15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
   (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
   and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
-- **Refresh button** — re-read the spa's state immediately instead of waiting
-  for the next poll. It can only fetch what the cloud has; the spa itself
-  reports every 2–3 minutes.
 - **Ready / Rest switch** — a one-tap toggle alongside the Heat mode select and
   the thermostat presets: on for Ready, off for Rest.
 - **Panel lock** — lock and unlock the spa's control panel, and its
@@ -326,6 +328,11 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Refresh button.** Re-reads the spa from ControlMySpa immediately instead of
+  waiting for the next poll.
 
 ### v0.2.2
 

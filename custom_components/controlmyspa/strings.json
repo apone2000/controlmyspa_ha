@@ -110,6 +110,9 @@
           "rest": "Rest"
         }
       }
+    },
+    "button": {
+      "refresh": { "name": "Refresh" }
     }
   }
 }

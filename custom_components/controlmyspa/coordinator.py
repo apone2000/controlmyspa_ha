@@ -89,6 +89,19 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             _LOGGER.debug("Component state unavailable this poll: %s", err)
             return None
 
+    async def async_refresh_now(self) -> None:
+        """Re-read the spa immediately, telling the user if that fails.
+
+        Unlike async_request_refresh this is not debounced, so it always
+        fetches. It can only return what the cloud already holds: the spa
+        itself uplinks every two to three minutes.
+        """
+        await self.async_refresh()
+        if not self.last_update_success:
+            raise HomeAssistantError(
+                f"Could not refresh from ControlMySpa: {self.last_exception}"
+            )
+
     async def async_set_component(self, component: Component, state: str) -> None:
         """Command one component and show the result without waiting for a poll."""
         command_type = component.command_type
