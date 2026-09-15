@@ -2,8 +2,8 @@
 """Exercise the integration's control code against the live API, without HA.
 
 Uses the integration's own api.py and models.py -- the same calls and parsing
-the coordinator makes -- and prints what the light, blower, heat mode and
-filter schedule entities would show.
+the coordinator makes -- and prints what the light, blower and heat mode
+entities would show.
 
     # read-only: what would the new entities report?
     python scripts/verify_controls.py --email you@example.com
@@ -14,12 +14,10 @@ filter schedule entities would show.
     python scripts/verify_controls.py --email you@example.com --heat-mode rest
     python scripts/verify_controls.py --email you@example.com --temp 100
     python scripts/verify_controls.py --email you@example.com --temp-c 38.0
-    python scripts/verify_controls.py --email you@example.com --filter 1 06:00 120
 
-Without --light, --blower, --heat-mode, --temp, --temp-c or --filter nothing is
-sent. --temp is in the unit the spa reports; --temp-c is Celsius, converted as a
-Celsius Home Assistant would. --filter takes the filter cycle's number, its start
-time and its length in minutes, sent in 15-minute blocks.
+Without --light, --blower, --heat-mode, --temp or --temp-c nothing is sent.
+--temp is in the unit the spa reports; --temp-c is Celsius, converted as a
+Celsius Home Assistant would.
 """
 
 from __future__ import annotations
@@ -120,27 +118,6 @@ def show(spa: dict, current: dict, state) -> None:
                 f" (turn on sends {component.on_value})"
             )
 
-    print("\n=== filter cycles ===")
-    filters = state.components_of("FILTER")
-    if not filters:
-        print("spa reports no FILTER components -- no schedule entities")
-    for component in filters:
-        number = (component.port or 0) + 1
-        raw = next(
-            (
-                c for c in current.get("components") or []
-                if isinstance(c, dict)
-                and c.get("componentType") == "FILTER"
-                and str(c.get("port")) == str(component.port)
-            ),
-            {},
-        )
-        print(f"filter {number}: value={component.value} keys={sorted(raw)}")
-        print(f"  raw hour={raw.get('hour')!r} minute={raw.get('minute')!r} "
-              f"durationMinutes={raw.get('durationMinutes')!r}")
-        print(f"  time.spa_filter_{number}_start_time = {component.start_time}")
-        print(f"  number.spa_filter_{number}_duration  = {component.duration_minutes}")
-
 
 async def main() -> int:
     """Show entity state, and send one command when asked."""
@@ -152,7 +129,6 @@ async def main() -> int:
     group.add_argument("--heat-mode", choices=("ready", "rest"))
     group.add_argument("--temp", type=float, metavar="DEGREES")
     group.add_argument("--temp-c", type=float, metavar="CELSIUS")
-    group.add_argument("--filter", nargs=3, metavar=("NUMBER", "HH:MM", "MINUTES"))
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -230,39 +206,9 @@ async def main() -> int:
                     and abs(fresh.target_temp - value) < 0.01
                 )
 
-        elif args.filter:
-            number, start_text, minutes_text = args.filter
-            port = int(number) - 1
-            component = state.component("FILTER", port)
-            if component is None:
-                print(f"\nNo filter cycle {number} to schedule.")
-                return 1
-            hour, minute = (int(part) for part in start_text.split(":"))
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                print(f"\n{start_text} is not a time of day.")
-                return 1
-            intervals = models.filter_intervals(float(minutes_text))
-            minutes = intervals * models.FILTER_INTERVAL_MINUTES
-            print(f"\nSending filter {number} {component.start_time} for "
-                  f"{component.duration_minutes} min -> {hour:02d}:{minute:02d} for "
-                  f"{minutes} min via async_set_filter_schedule(<spa>, {port}, "
-                  f"{hour}, {minute}, {intervals})")
-            send = client.async_set_filter_schedule(spa_id, port, hour, minute, intervals)
-
-            def reached(fresh) -> bool:
-                match = fresh.component("FILTER", port)
-                start = match.start_time if match else None
-                duration = match.duration_minutes if match else None
-                print(f"start={start} duration={duration}", end="  ")
-                return (
-                    match is not None
-                    and (match.hour, match.minute) == (hour, minute)
-                    and duration == minutes
-                )
-
         else:
-            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp or "
-                  "--filter to send a command.")
+            print("\nRead-only. Pass --light, --blower, --heat-mode or --temp "
+                  "to send a command.")
             return 0
 
         try:

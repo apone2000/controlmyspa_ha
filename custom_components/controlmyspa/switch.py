@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
-from .entity import ControlMySpaOnOffEntity, describe_components
+from .entity import ControlMySpaComponentEntity, describe_components
 
 
 async def async_setup_entry(
@@ -25,5 +25,5 @@ async def async_setup_entry(
     )
 
 
-class ControlMySpaSwitch(ControlMySpaOnOffEntity, SwitchEntity):
+class ControlMySpaSwitch(ControlMySpaComponentEntity, SwitchEntity):
     """A spa blower as a plain on/off switch, on at its strongest setting."""

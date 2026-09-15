@@ -7,7 +7,7 @@ of the real data are covered rather than an idealised version of it.
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from conftest import models
 
@@ -507,74 +507,6 @@ def test_with_component_value_leaves_the_original_untouched():
     assert updated.component("BLOWER", 0) == state.component("BLOWER", 0)
     unread = SpaState.from_api(_spa())
     assert unread.with_component_value("LIGHT", 0, "OFF") is unread
-
-
-# --- filter cycles -----------------------------------------------------------
-
-
-def _with_filters():
-    """Two filter cycles scheduled as the portal's filter dialog reads them."""
-    return _with_components(
-        [
-            {
-                "componentType": "FILTER",
-                "port": "0",
-                "value": "OFF",
-                "hour": 6,
-                "minute": 5,
-                "durationMinutes": 120,
-            },
-            {
-                "componentType": "FILTER",
-                "port": "1",
-                "value": "DISABLED",
-                "hour": "18",
-                "minute": "30",
-                "durationMinutes": "45",
-            },
-        ]
-    )
-
-
-def test_filter_cycle_schedules_are_parsed():
-    """Start and length are read off each FILTER component, in either type."""
-    filter1, filter2 = _with_filters().components_of("FILTER")
-
-    assert (filter1.start_time, filter1.duration_minutes) == (time(6, 5), 120)
-    assert (filter2.start_time, filter2.duration_minutes) == (time(18, 30), 45)
-
-
-def test_filter_start_is_unknown_when_missing_or_impossible():
-    """A half-reported or out-of-range time is not passed off as a real one."""
-    assert models.Component("FILTER", 0, "OFF").start_time is None
-    assert models.Component("FILTER", 0, "OFF", hour=6).start_time is None
-    assert models.Component("FILTER", 0, "OFF", hour=24, minute=0).start_time is None
-    assert _with_components().component("LIGHT", 0).duration_minutes is None
-
-
-def test_filter_lengths_are_sent_in_fifteen_minute_blocks():
-    """The portal sends max(1, Math.round(minutes / 15))."""
-    assert models.filter_intervals(15) == 1
-    assert models.filter_intervals(120) == 8
-    assert models.filter_intervals(240) == 16
-    assert models.filter_intervals(22) == 1
-    assert models.filter_intervals(22.5) == 2
-    assert models.filter_intervals(0) == 1
-
-
-def test_with_filter_schedule_changes_only_that_cycle():
-    """The optimistic update touches one filter and leaves the original alone."""
-    state = _with_filters()
-
-    updated = state.with_filter_schedule(1, time(20, 15), 60)
-
-    assert updated.component("FILTER", 1).start_time == time(20, 15)
-    assert updated.component("FILTER", 1).duration_minutes == 60
-    assert updated.component("FILTER", 1).value == "DISABLED"
-    assert updated.component("FILTER", 0) == state.component("FILTER", 0)
-    assert state.component("FILTER", 1).start_time == time(18, 30)
-    unread = SpaState.from_api(_spa())
-    assert unread.with_filter_schedule(0, time(6, 0), 60) is unread
 
 
 # --- target temperature ------------------------------------------------------

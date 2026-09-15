@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
-from .entity import ControlMySpaOnOffEntity, describe_components
+from .entity import ControlMySpaComponentEntity, describe_components
 
 
 async def async_setup_entry(
@@ -29,7 +29,7 @@ async def async_setup_entry(
     )
 
 
-class ControlMySpaLight(ControlMySpaOnOffEntity, LightEntity):
+class ControlMySpaLight(ControlMySpaComponentEntity, LightEntity):
     """A spa light, switched on at its strongest setting.
 
     Ordinary spa lights offer only OFF and HIGH, so no brightness is exposed.

@@ -69,7 +69,7 @@ class ControlMySpaEntity(CoordinatorEntity[ControlMySpaCoordinator]):
 
 
 class ControlMySpaComponentEntity(ControlMySpaEntity):
-    """An entity bound to one component from current-state.
+    """An on/off control bound to one component from current-state.
 
     The component is looked up again on every read rather than held, because
     each poll replaces the snapshot it lives in.
@@ -96,10 +96,6 @@ class ControlMySpaComponentEntity(ControlMySpaEntity):
     def available(self) -> bool:
         """Go unavailable while component state cannot be read."""
         return super().available and self.component is not None
-
-
-class ControlMySpaOnOffEntity(ControlMySpaComponentEntity):
-    """A component switched on at its strongest setting, or off."""
 
     @property
     def is_on(self) -> bool | None:
