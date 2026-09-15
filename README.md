@@ -15,7 +15,8 @@ and declares no extra Python dependencies.
 
 ## Requirements
 
-- Home Assistant 2025.2 or newer
+- Home Assistant 2025.2 or newer (2026.3 or newer to show the integration's
+  icon)
 - A ControlMySpa account (the same one the mobile app uses)
 - Internet access from Home Assistant — this is a cloud API, not a local one
 
@@ -70,6 +71,16 @@ Then **restart Home Assistant**.
 > Python still has cached in memory, so your changes appear to do nothing.
 > Always restart.
 
+### Updating
+
+In HACS, open **ControlMySpa** and choose **Update** (if none is offered yet,
+use **⋮ → Update information** first), then restart Home Assistant.
+
+Read the [Changelog](#changelog) before updating. When a release replaces an
+entity, the old one is left behind as *no longer provided*: point any
+automations, scripts or dashboards at the new entity, then delete the old one
+from the device page.
+
 ## Set up
 
 **Settings → Devices & Services → Add Integration → ControlMySpa**, then sign in
@@ -120,20 +131,64 @@ faster than reading Home Assistant logs. See
 
 ## Entities
 
-All entities hang off a single spa device.
+All entities hang off a single device named **Spa**; the IDs below are the ones
+Home Assistant gives them. *Diagnostic* entities are listed under Diagnostic on
+the device page rather than with the controls and sensors. Entities marked
+*disabled* are created disabled; enable them from the device page if you want
+them.
 
-**Sensors** — water temperature (and its raw reading), target temperature,
-ambient temperature, high limit temperature, heater mode, run mode, error code,
-Wi-Fi health, last uplink, and the filter / water-change / ClearRay reminder
-counters.
+**Controls**
 
-**Binary sensors** — online, heating, temperature reached, error, eco mode,
-soak mode, cleanup cycle, priming mode, water temperature held, and the
-temperature / settings / maintenance locks.
+| Entity | ID | Notes |
+|---|---|---|
+| Thermostat | `climate.spa` | Water temperature, target, Ready / Rest presets |
+| Heat mode | `select.spa_heat_mode` | Ready / Rest |
+| Ready mode | `switch.spa_ready_mode` | On for Ready, off for Rest |
+| Temperature range | `select.spa_temperature_range` | High / Low |
+| Light | `light.spa_light` | On / off; only if the spa reports a light |
+| Blower | `switch.spa_blower` | On / off; only if the spa reports a blower |
+| Panel lock | `lock.spa_panel_lock` | Locks the spa's own buttons |
+| Refresh | `button.spa_refresh` | Re-reads the spa now |
 
-**Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
-(Ready / Rest, as a select and as a Ready mode switch), a panel lock,
-temperature range (High / Low), and a Refresh button.
+**Sensors**
+
+| Entity | ID | Notes |
+|---|---|---|
+| Water temperature | `sensor.spa_water_temperature` | Last good reading held; the one to graph |
+| Water temperature (raw) | `sensor.spa_water_temperature_raw` | Diagnostic; exactly as the API sends it |
+| Target temperature | `sensor.spa_target_temperature` | |
+| Heater mode | `sensor.spa_heater_mode` | Ready, Rest or Ready-in-Rest |
+| Run mode | `sensor.spa_run_mode` | |
+| Ambient temperature | `sensor.spa_ambient_temperature` | Diagnostic |
+| High limit temperature | `sensor.spa_high_limit_temperature` | Diagnostic, disabled |
+| Error code | `sensor.spa_error_code` | Diagnostic |
+| Wi-Fi health | `sensor.spa_wi_fi_health` | Diagnostic |
+| Last uplink | `sensor.spa_last_uplink` | Diagnostic; stays available during an outage |
+| Filter 1 reminder | `sensor.spa_filter_1_reminder` | Diagnostic, days |
+| Filter 2 reminder | `sensor.spa_filter_2_reminder` | Diagnostic, days, disabled |
+| Water change reminder | `sensor.spa_water_change_reminder` | Diagnostic, days |
+| ClearRay reminder | `sensor.spa_clearray_reminder` | Diagnostic, days, disabled |
+
+**Binary sensors**
+
+| Entity | ID | Notes |
+|---|---|---|
+| Heating | `binary_sensor.spa_heating` | |
+| Temperature reached | `binary_sensor.spa_temperature_reached` | |
+| Eco mode | `binary_sensor.spa_eco_mode` | |
+| Soak mode | `binary_sensor.spa_soak_mode` | |
+| Cleanup cycle | `binary_sensor.spa_cleanup_cycle` | |
+| Light | `binary_sensor.spa_light` | Tri-Zone Lighting spas only, from their TZL status |
+| Online | `binary_sensor.spa_online` | Diagnostic; stays available during an outage |
+| Stale data | `binary_sensor.spa_stale_data` | Diagnostic, disabled; stays available during an outage |
+| Water temperature held | `binary_sensor.spa_water_temperature_held` | Diagnostic |
+| Error | `binary_sensor.spa_error` | Diagnostic |
+| Priming mode | `binary_sensor.spa_priming_mode` | Diagnostic, disabled |
+| Temperature lock | `binary_sensor.spa_temperature_lock` | Diagnostic |
+| Settings lock | `binary_sensor.spa_settings_lock` | Diagnostic, disabled |
+| Maintenance lock | `binary_sensor.spa_maintenance_lock` | Diagnostic, disabled |
+
+A spa with several lights or blowers gets them numbered, e.g. `light.spa_light_1`.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -182,12 +237,6 @@ for the next poll. It can only fetch what the cloud already has: the spa itself
 reports every two to three minutes, so pressing it more often than that mostly
 returns the same data. If the read fails, Home Assistant shows why.
 
-Spas with Tri-Zone Lighting also get a **Light** binary sensor from their TZL
-status.
-
-Less commonly useful entities are created disabled; enable them from the device
-page if you want them.
-
 ### Temperature units
 
 The payload's `celsius` field describes how the mobile app *displays*
@@ -205,7 +254,9 @@ are. A Celsius install gets Celsius directly from the integration, rounded the
 way the portal and the spa's panel round it rather than converted exactly — see
 [Entities](#entities). There is deliberately no separate °C/°F option: Home
 Assistant converts climate and sensor temperatures to its unit system whatever
-an integration reports, so such an option could not change what you see.
+an integration reports, so such an option could not change what you see. The
+one exception is **Water temperature (raw)**, which deliberately has no
+temperature device class and so stays in the spa's own unit.
 
 ### Unreported fields
 
@@ -248,7 +299,8 @@ a fault. It drives the optional **Stale data** diagnostic sensor instead, for
 anyone who wants to see or automate on reading freshness.
 
 The `Online`, `Stale data`, and `Last uplink` entities deliberately stay
-available during an outage — they are how you see what is going on.
+available during an outage — they are how you see what is going on. The
+**Refresh** button stays available too, so a failed read can be retried.
 
 ## Verifying before you install
 
