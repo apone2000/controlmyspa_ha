@@ -155,6 +155,14 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
         self.async_set_updated_data(replace(self.data, panel_lock=locked))
         self._schedule_confirmation()
 
+    async def async_set_temp_range(self, temp_range: str) -> None:
+        """Switch between HIGH and LOW, showing the new range's limits at once."""
+        await self._async_send(
+            self.client.async_set_temperature_range(self.data.spa_id, temp_range)
+        )
+        self.async_set_updated_data(self.data.with_temp_range(temp_range))
+        self._schedule_confirmation()
+
     async def _async_send(self, command: Awaitable[None]) -> None:
         """Await a command, turning a refusal into an error the user sees."""
         try:

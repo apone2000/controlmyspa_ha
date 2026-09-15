@@ -9,8 +9,8 @@ it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
 > **Status: early control.** Spa state is published into Home Assistant, and the
-> target temperature, light, blower, heat mode and panel lock can be controlled. Jets and
-> temperature range are not implemented yet — see [Write support](#write-support).
+> target temperature, light, blower, heat mode and panel lock can be controlled, and the
+> temperature range switched. Jets are not implemented yet — see [Write support](#write-support).
 
 ## Requirements
 
@@ -122,7 +122,7 @@ faster than reading Home Assistant logs. See
 All entities hang off a single spa device.
 
 **Sensors** — water temperature (and its raw reading), target temperature, ambient temperature, high
-limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
+limit temperature, heater mode, run mode, error code, Wi-Fi
 health, last uplink, and the filter / water-change / ClearRay reminder counters.
 
 **Binary sensors** — online, heating, temperature reached, error, eco mode,
@@ -130,8 +130,8 @@ soak mode, cleanup cycle, priming mode, water temperature held, and the
 temperature / settings / maintenance locks.
 
 **Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
-(Ready / Rest, as a select and as a Ready mode switch), a panel lock, and a
-Refresh button.
+(Ready / Rest, as a select and as a Ready mode switch), a panel lock,
+temperature range (High / Low), and a Refresh button.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -164,6 +164,12 @@ Rest. It reads off during Ready-in-Rest, which is Rest mode.
 
 **Panel lock** (`lock.spa_panel_lock`) locks the spa's own control panel, so its
 buttons do nothing until it is unlocked again.
+
+**Temperature range** (`select.spa_temperature_range`) switches between High and
+Low. Each range has its own limits from the spa's setup, such as 80–104 °F and
+50–99 °F, and the thermostat's minimum and maximum follow the choice. Each
+range also keeps its own target: the new limits show straight away, and the
+thermostat picks up that range's target when it re-reads a few seconds later.
 
 A command's effect shows immediately and is re-read five seconds later to
 confirm it. If ControlMySpa refuses a command, Home Assistant shows the
@@ -284,8 +290,8 @@ All the scripts read the password from `CONTROLMYSPA_PASSWORD` or prompt for it.
 ## Write support
 
 Command formats were recovered from the ControlMySpa web portal's own
-JavaScript rather than guessed, and the temperature, light, blower, heat mode
-and panel lock commands were all verified against a real spa:
+JavaScript rather than guessed, and the temperature, temperature range, light,
+blower, heat mode and panel lock commands were all verified against a real spa:
 
 ```json
 POST /web/spa-commands/component-state
@@ -299,6 +305,9 @@ POST /web/spa-commands/temperature/value
 
 POST /web/spa-commands/panel/state
 {"spaId": "...", "via": "WEB", "state": "LOCK_PANEL"}
+
+POST /web/spa-commands/temperature/range
+{"spaId": "...", "via": "WEB", "range": "LOW"}
 ```
 
 The temperature `value` is always Fahrenheit, even for spas displayed in
@@ -325,8 +334,6 @@ the portal's own JavaScript; each will be verified against a real spa with
   daylight saving, so a daily automation pressing Sync is worthwhile.
   (`POST /web/spa-commands/time` with `time` as `"HH:MM"` and
   `isMilitaryFormat`.)
-- **Temperature range** — switch between High and Low; the thermostat's
-  limits follow. (`temperature/range` with `range` as `HIGH` or `LOW`.)
 - **Jets** — control each pump at its two speeds, Low and High.
   (`component-state` with `jet` and the pump's port.)
 - **Filter cycles 1 and 2** — set each cycle's start time, and its duration in
@@ -349,6 +356,11 @@ the portal's own JavaScript; each will be verified against a real spa with
 - **Water temperature (raw) sensor.** The water temperature exactly as the API
   returns it, including the no-reading value, alongside the existing filtered
   and held one.
+- **Temperature range select.** Switch between High and Low; the thermostat's
+  limits follow. **Breaking:** this select (`select.spa_temperature_range`)
+  replaces the Temperature range sensor. Update any automation that used
+  `sensor.spa_temperature_range` (its states were `HIGH` / `LOW`; the select's
+  are `high` / `low`), then delete the old entity from the device page.
 
 ### v0.2.3
 

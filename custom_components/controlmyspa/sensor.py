@@ -89,11 +89,6 @@ SENSORS: tuple[ControlMySpaSensorDescription, ...] = (
         value_fn=lambda spa: heater_mode_state(spa.heater_mode),
     ),
     ControlMySpaSensorDescription(
-        key="temp_range",
-        translation_key="temp_range",
-        value_fn=lambda spa: spa.temp_range,
-    ),
-    ControlMySpaSensorDescription(
         key="run_mode",
         translation_key="run_mode",
         value_fn=lambda spa: spa.run_mode,

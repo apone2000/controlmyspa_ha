@@ -56,7 +56,6 @@
           "ready_rest": "Ready-in-Rest"
         }
       },
-      "temp_range": { "name": "Temperature range" },
       "run_mode": { "name": "Run mode" },
       "error_code": { "name": "Error code" },
       "wifi_health": { "name": "Wi-Fi health" },
@@ -109,6 +108,13 @@
         "state": {
           "ready": "Ready",
           "rest": "Rest"
+        }
+      },
+      "temp_range": {
+        "name": "Temperature range",
+        "state": {
+          "high": "High",
+          "low": "Low"
         }
       }
     },

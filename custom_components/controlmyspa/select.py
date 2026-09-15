@@ -8,12 +8,17 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
 from .entity import ControlMySpaEntity
-from .models import SETTABLE_HEATER_MODES, settable_heater_mode
+from .models import SETTABLE_HEATER_MODES, settable_heater_mode, settable_temp_range
 
 HEAT_MODE = SelectEntityDescription(
     key="heat_mode",
     translation_key="heat_mode",
     options=[mode.lower() for mode in SETTABLE_HEATER_MODES],
+)
+TEMP_RANGE = SelectEntityDescription(
+    key="temp_range",
+    translation_key="temp_range",
+    options=["high", "low"],
 )
 
 
@@ -23,7 +28,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the select platform."""
-    async_add_entities([ControlMySpaHeatModeSelect(entry.runtime_data, HEAT_MODE)])
+    coordinator = entry.runtime_data
+    async_add_entities(
+        [
+            ControlMySpaHeatModeSelect(coordinator, HEAT_MODE),
+            ControlMySpaTempRangeSelect(coordinator, TEMP_RANGE),
+        ]
+    )
 
 
 class ControlMySpaHeatModeSelect(ControlMySpaEntity, SelectEntity):
@@ -42,3 +53,20 @@ class ControlMySpaHeatModeSelect(ControlMySpaEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         """Switch the heater to the chosen mode."""
         await self.coordinator.async_set_heater_mode(option.upper())
+
+
+class ControlMySpaTempRangeSelect(ControlMySpaEntity, SelectEntity):
+    """Chooses between the High and Low temperature ranges.
+
+    Each range has its own target limits, so the thermostat's minimum and
+    maximum follow the choice.
+    """
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the active temperature range."""
+        return settable_temp_range(self.spa.temp_range)
+
+    async def async_select_option(self, option: str) -> None:
+        """Switch the spa to the chosen range."""
+        await self.coordinator.async_set_temp_range(option.upper())
