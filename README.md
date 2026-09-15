@@ -171,7 +171,7 @@ returns the same data. If the read fails, Home Assistant shows why.
 **Filter 1 start time**, **Filter 1 duration** and their Filter 2 equivalents
 set each filter cycle's schedule. They are configuration entities, so they sit
 under *Configuration* on the device page. Duration is a slider from 15 minutes
-to 4 hours in 15-minute steps; a longer cycle set on the panel or in the portal
+to 6 hours in 15-minute steps; a longer cycle set on the panel or in the portal
 still shows its real length. The spa takes a cycle's start and length
 together, so changing one resends the other as it is. Turning filter cycle 2 on
 or off is not supported yet.
@@ -339,7 +339,7 @@ the portal's own JavaScript; each will be verified against a real spa with
 ### Unreleased
 
 - **Filter cycle schedules.** A start time and a duration slider (15 minutes to
-  4 hours, in 15-minute steps) for filter 1 and filter 2.
+  6 hours, in 15-minute steps) for filter 1 and filter 2.
 
 ### v0.2.3
 

@@ -16,9 +16,10 @@ from .coordinator import ControlMySpaConfigEntry
 from .entity import ControlMySpaComponentEntity
 from .models import FILTER_INTERVAL_MINUTES
 
-# The longest filter cycle the slider offers. The portal allows up to 24 hours;
-# a longer cycle set there or on the panel still shows its real length.
-FILTER_DURATION_MAX_MINUTES = 240
+# The longest filter cycle the slider offers: 6 hours, which covers the 5-hour
+# cycles seen live. The portal allows up to 24 hours; a longer cycle set there
+# or on the panel still shows its real length.
+FILTER_DURATION_MAX_MINUTES = 360
 
 
 async def async_setup_entry(
