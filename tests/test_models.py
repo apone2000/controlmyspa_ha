@@ -126,6 +126,17 @@ def test_no_reading_sentinel_is_unknown_not_a_temperature():
     assert SpaState.from_api(_spa(currentTemp="96.00")).current_temp == 96.0
 
 
+def test_raw_water_temperature_keeps_what_the_api_sent():
+    """The raw reading keeps the sentinel and is never replaced by a held value."""
+    assert SpaState.from_api(_spa(currentTemp="262.00")).current_temp_raw == 262.0
+    assert SpaState.from_api(_spa(currentTemp="96.00")).current_temp_raw == 96.0
+    assert SpaState.from_api(_spa(currentTemp="")).current_temp_raw is None
+    held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        SpaState.from_api(_spa(currentTemp="96.00"))
+    )
+    assert (held.current_temp, held.current_temp_raw) == (96.0, 262.0)
+
+
 def test_a_fresh_reading_records_when_it_was_measured():
     """The measurement time is the uplink that carried the reading."""
     state = SpaState.from_api(_spa(currentTemp="96.00"))

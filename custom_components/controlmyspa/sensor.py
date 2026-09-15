@@ -29,6 +29,9 @@ class ControlMySpaSensorDescription(SensorEntityDescription):
     attributes_fn: Callable[[SpaState], dict[str, Any]] | None = None
     # Temperature units are resolved per-reading from the payload.
     is_temperature: bool = False
+    # A temperature left in the API's own unit, unconverted and unrounded. It
+    # has no device class, so Home Assistant does not convert it either.
+    api_unit: bool = False
     # Diagnostics that stay meaningful while the spa is unreachable.
     always_available: bool = False
 
@@ -44,6 +47,14 @@ SENSORS: tuple[ControlMySpaSensorDescription, ...] = (
         # The value may be held from an earlier reading; this says when it was
         # actually measured.
         attributes_fn=lambda spa: {"measured_at": spa.current_temp_at},
+    ),
+    ControlMySpaSensorDescription(
+        key="current_temp_raw",
+        translation_key="current_temp_raw",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        api_unit=True,
+        value_fn=lambda spa: spa.current_temp_raw,
     ),
     ControlMySpaSensorDescription(
         key="target_temp",
@@ -171,6 +182,12 @@ class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
                 UnitOfTemperature.CELSIUS
                 if self.display_celsius
                 else UnitOfTemperature.FAHRENHEIT
+            )
+        if self.entity_description.api_unit:
+            return (
+                UnitOfTemperature.FAHRENHEIT
+                if self.spa.fahrenheit
+                else UnitOfTemperature.CELSIUS
             )
         return self.entity_description.native_unit_of_measurement
 

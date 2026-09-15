@@ -44,6 +44,7 @@
   "entity": {
     "sensor": {
       "current_temp": { "name": "Water temperature" },
+      "current_temp_raw": { "name": "Water temperature (raw)" },
       "target_temp": { "name": "Target temperature" },
       "ambient_temp": { "name": "Ambient temperature" },
       "high_limit_temp": { "name": "High limit temperature" },

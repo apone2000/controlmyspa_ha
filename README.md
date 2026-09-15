@@ -121,7 +121,7 @@ faster than reading Home Assistant logs. See
 
 All entities hang off a single spa device.
 
-**Sensors** — water temperature, target temperature, ambient temperature, high
+**Sensors** — water temperature (and its raw reading), target temperature, ambient temperature, high
 limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
 health, last uplink, and the filter / water-change / ClearRay reminder counters.
 
@@ -218,6 +218,11 @@ the last good reading is **held** until the pump runs again:
   coloured bar under the line, marking where the value was not measured.
 - The water temperature sensor's `measured_at` attribute is when its value was
   actually taken.
+- **Water temperature (raw)** (diagnostic) is `currentTemp` exactly as the API
+  sends it each poll: in the spa's own unit with no conversion or rounding, and
+  with nothing filtered or held, so the ~262 °F no-reading value shows as it
+  is. Graph the ordinary water temperature; use this one to see what the spa
+  really reported.
 
 After a Home Assistant restart there is nothing to hold, so the temperature is
 *Unknown* until the spa next measures it.
@@ -341,6 +346,9 @@ the portal's own JavaScript; each will be verified against a real spa with
   **Breaking:** this lock entity (`lock.spa_panel_lock`) replaces the Panel lock
   binary sensor. Update any automation that used `binary_sensor.spa_panel_lock`,
   then delete the old entity from the device page.
+- **Water temperature (raw) sensor.** The water temperature exactly as the API
+  returns it, including the no-reading value, alongside the existing filtered
+  and held one.
 
 ### v0.2.3
 

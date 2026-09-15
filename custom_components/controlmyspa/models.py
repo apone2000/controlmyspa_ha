@@ -323,6 +323,9 @@ class SpaState:
     # when that reading was taken.
     current_temp_held: bool = False
     current_temp_at: datetime | None = None
+    # currentTemp exactly as this poll's payload gave it, sentinels included and
+    # never held, for anyone who wants to see what the spa actually sent.
+    current_temp_raw: float | None = None
     target_temp: float | None = None
     ambient_temp: float | None = None
     high_limit_temp: float | None = None
@@ -511,6 +514,7 @@ class SpaState:
             online=bool(current.get("online")),
             current_temp=current_temp,
             current_temp_at=uplink_timestamp if current_temp is not None else None,
+            current_temp_raw=_as_float(current.get("currentTemp")),
             target_temp=target_temp,
             ambient_temp=_as_float_reported(current.get("ambientTemp")),
             high_limit_temp=_as_float_reported(current.get("hiLimitTemp")),
