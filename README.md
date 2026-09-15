@@ -329,7 +329,7 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ## Changelog
 
-### Unreleased
+### v0.2.3
 
 - **Refresh button.** Re-reads the spa from ControlMySpa immediately instead of
   waiting for the next poll.
