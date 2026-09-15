@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,7 +20,13 @@ from .api import (
     ControlMySpaError,
 )
 from .const import COMMAND_REFRESH_DELAY, DOMAIN
-from .models import Component, SpaState, command_temperature
+from .models import (
+    FILTER_INTERVAL_MINUTES,
+    Component,
+    SpaState,
+    command_temperature,
+    filter_intervals,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,6 +149,43 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             self.client.async_set_heater_mode(self.data.spa_id, mode)
         )
         self.async_set_updated_data(replace(self.data, heater_mode=mode))
+        self._schedule_confirmation()
+
+    async def async_set_filter_schedule(
+        self,
+        port: int,
+        start: time | None = None,
+        duration_minutes: float | None = None,
+    ) -> None:
+        """Change a filter cycle's start or length, keeping the other as it is.
+
+        The command always carries both, so whichever was not given is taken
+        from the latest snapshot.
+        """
+        component = self.data.component("FILTER", port)
+        if component is None:
+            raise HomeAssistantError(
+                f"The spa is not currently reporting filter cycle {port + 1}"
+            )
+        if start is None:
+            start = component.start_time
+        if duration_minutes is None:
+            duration_minutes = component.duration_minutes
+        if start is None or duration_minutes is None:
+            raise HomeAssistantError(
+                f"The spa has not reported a schedule for filter cycle {port + 1}"
+            )
+        intervals = filter_intervals(duration_minutes)
+        await self._async_send(
+            self.client.async_set_filter_schedule(
+                self.data.spa_id, port, start.hour, start.minute, intervals
+            )
+        )
+        self.async_set_updated_data(
+            self.data.with_filter_schedule(
+                port, start, intervals * FILTER_INTERVAL_MINUTES
+            )
+        )
         self._schedule_confirmation()
 
     async def _async_send(self, command: Awaitable[None]) -> None:

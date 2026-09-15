@@ -113,6 +113,12 @@
     },
     "button": {
       "refresh": { "name": "Refresh" }
+    },
+    "number": {
+      "filter_duration": { "name": "Filter {number} duration" }
+    },
+    "time": {
+      "filter_start": { "name": "Filter {number} start time" }
     }
   }
 }

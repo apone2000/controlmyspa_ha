@@ -130,7 +130,8 @@ soak mode, cleanup cycle, priming mode, water temperature held, and the panel /
 temperature / settings / maintenance locks.
 
 **Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
-(Ready / Rest), and a Refresh button.
+(Ready / Rest), a Refresh button, and a start time and duration for each filter
+cycle.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -166,6 +167,14 @@ service's own message and the state is left as it was.
 for the next poll. It can only fetch what the cloud already has: the spa itself
 reports every two to three minutes, so pressing it more often than that mostly
 returns the same data. If the read fails, Home Assistant shows why.
+
+**Filter 1 start time**, **Filter 1 duration** and their Filter 2 equivalents
+set each filter cycle's schedule. They are configuration entities, so they sit
+under *Configuration* on the device page. Duration is a slider from 15 minutes
+to 4 hours in 15-minute steps; a longer cycle set on the panel or in the portal
+still shows its real length. The spa takes a cycle's start and length
+together, so changing one resends the other as it is. Turning filter cycle 2 on
+or off is not supported yet.
 
 Spas with Tri-Zone Lighting also get a **Light** binary sensor from their TZL
 status.
@@ -314,10 +323,8 @@ the portal's own JavaScript; each will be verified against a real spa with
   limits follow. (`temperature/range` with `range` as `HIGH` or `LOW`.)
 - **Jets** — control each pump at its two speeds, Low and High.
   (`component-state` with `jet` and the pump's port.)
-- **Filter cycles 1 and 2** — set each cycle's start time, and its duration in
-  15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
-  (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
-  and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
+- **Filter cycle 2 on/off** — filter 1 always runs.
+  (`filter-cycles/toggle-filter2-state` with `state` as `ON` or `OFF`.)
 - **Ready / Rest switch** — a one-tap toggle alongside the Heat mode select and
   the thermostat presets: on for Ready, off for Rest.
 - **Panel lock** — lock and unlock the spa's control panel, and its
@@ -328,6 +335,11 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Filter cycle schedules.** A start time and a duration slider (15 minutes to
+  4 hours, in 15-minute steps) for filter 1 and filter 2.
 
 ### v0.2.3
 

@@ -361,6 +361,24 @@ async def test_target_temperature_command_sends_value():
     assert kwargs["json"] == {"spaId": "spa-1", "via": "WEB", "value": 101.0}
 
 
+async def test_filter_schedule_command_sends_the_portal_payload():
+    """The portal's filter dialog: port, 15-minute blocks, zero-padded time."""
+    session = FakeSession(post_responses=[login_response(), command_response()])
+    client = ControlMySpaClient(session, "user@example.com", "secret")
+
+    await client.async_set_filter_schedule("spa-1", 1, 7, 5, 8)
+
+    url, kwargs = session.post_calls[1]
+    assert url.endswith("/web/spa-commands/filter-cycles/schedule")
+    assert kwargs["json"] == {
+        "spaId": "spa-1",
+        "via": "WEB",
+        "deviceNumber": 1,
+        "numOfIntervals": 8,
+        "time": "07:05",
+    }
+
+
 async def test_service_refusal_raises_command_error_with_its_message():
     """Observed live: a 503 carrying a Redis out-of-memory refusal."""
     session = FakeSession(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 
 from .const import FAHRENHEIT_THRESHOLD, STALE_AFTER, STALE_GRACE
@@ -47,6 +47,10 @@ _OFF_VALUES = frozenset({"OFF", "DISABLED"})
 # Used to pick the strongest setting a component offers, whatever order the
 # API lists them in.
 _VALUE_RANK = {"OFF": 0, "DISABLED": 0, "LOW": 1, "MED": 2, "HIGH": 3, "ON": 3}
+
+# A filter cycle's length is set in whole blocks of this many minutes, as the
+# portal's filter dialog sets it.
+FILTER_INTERVAL_MINUTES = 15
 
 # Controllers report 0 for hardware they do not have. A real reading of exactly
 # zero is not meaningful for any of these fields (0F water is frozen, a zero
@@ -231,6 +235,15 @@ def command_temperature(
     return result
 
 
+def filter_intervals(minutes: float) -> int:
+    """Return how many 15-minute blocks to send for a filter cycle's length.
+
+    The portal sends max(1, Math.round(minutes / 15)), so a cycle is never
+    shorter than one block and halves round up.
+    """
+    return max(1, math.floor(minutes / FILTER_INTERVAL_MINUTES + 0.5))
+
+
 def heater_mode_state(mode: str | None) -> str | None:
     """Return the reported heater mode as a translatable state key."""
     if isinstance(mode, str) and mode.upper() in HEATER_MODES:
@@ -262,6 +275,11 @@ class Component:
     port: int | None
     value: str
     available_values: tuple[str, ...] = ()
+    # Filter cycles only: the schedule's start and length. None for every other
+    # type, and for a filter whose record omits them.
+    hour: int | None = None
+    minute: int | None = None
+    duration_minutes: int | None = None
 
     @classmethod
     def from_api(cls, raw: dict[str, Any]) -> Component | None:
@@ -277,6 +295,9 @@ class Component:
                 normalise_component_value(value, component_type)
                 for value in raw.get("availableValues") or []
             ),
+            hour=_as_int(raw.get("hour")),
+            minute=_as_int(raw.get("minute")),
+            duration_minutes=_as_int(raw.get("durationMinutes")),
         )
 
     @property
@@ -307,6 +328,15 @@ class Component:
         if self.component_type not in PORTED_TYPES:
             return None
         return self.port or 0
+
+    @property
+    def start_time(self) -> time | None:
+        """Return a filter cycle's start, or None if unreported or impossible."""
+        if self.hour is None or self.minute is None:
+            return None
+        if not (0 <= self.hour <= 23 and 0 <= self.minute <= 59):
+            return None
+        return time(self.hour, self.minute)
 
 
 @dataclass
@@ -420,6 +450,27 @@ class SpaState:
             components=tuple(
                 replace(c, value=value)
                 if (c.component_type, c.port) == (component_type, port)
+                else c
+                for c in self.components
+            ),
+        )
+
+    def with_filter_schedule(
+        self, port: int, start: time, duration_minutes: int
+    ) -> SpaState:
+        """Return a copy with one filter cycle's start and length replaced."""
+        if self.components is None:
+            return self
+        return replace(
+            self,
+            components=tuple(
+                replace(
+                    c,
+                    hour=start.hour,
+                    minute=start.minute,
+                    duration_minutes=duration_minutes,
+                )
+                if (c.component_type, c.port) == ("FILTER", port)
                 else c
                 for c in self.components
             ),

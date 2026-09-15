@@ -338,3 +338,22 @@ class ControlMySpaClient:
             "temperature/heater-mode",
             {"spaId": spa_id, "via": COMMAND_VIA, "mode": mode},
         )
+
+    async def async_set_filter_schedule(
+        self, spa_id: str, port: int, hour: int, minute: int, intervals: int
+    ) -> None:
+        """Set a filter cycle's start time and its length in 15-minute blocks.
+
+        ``port`` is the FILTER component's port: 0 for filter 1, 1 for filter 2.
+        The service takes both values together, so neither can be sent alone.
+        """
+        await self._async_command(
+            "filter-cycles/schedule",
+            {
+                "spaId": spa_id,
+                "via": COMMAND_VIA,
+                "deviceNumber": port,
+                "numOfIntervals": intervals,
+                "time": f"{hour:02d}:{minute:02d}",
+            },
+        )

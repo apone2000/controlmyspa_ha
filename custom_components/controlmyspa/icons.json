@@ -2,6 +2,12 @@
   "entity": {
     "button": {
       "refresh": { "default": "mdi:refresh" }
+    },
+    "number": {
+      "filter_duration": { "default": "mdi:timer-outline" }
+    },
+    "time": {
+      "filter_start": { "default": "mdi:clock-start" }
     }
   }
 }
