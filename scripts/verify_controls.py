@@ -14,10 +14,13 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --heat-mode rest
     python scripts/verify_controls.py --email you@example.com --temp 100
     python scripts/verify_controls.py --email you@example.com --temp-c 38.0
+    python scripts/verify_controls.py --email you@example.com --panel-lock lock
+    python scripts/verify_controls.py --email you@example.com --temp-lock unlock
 
-Without --light, --blower, --heat-mode, --temp or --temp-c nothing is sent.
---temp is in the unit the spa reports; --temp-c is Celsius, converted as a
-Celsius Home Assistant would.
+Without --light, --blower, --heat-mode, --temp, --temp-c, --panel-lock or
+--temp-lock nothing is sent. --temp is in the unit the spa reports; --temp-c is
+Celsius, converted as a Celsius Home Assistant would. A locked panel stops the
+spa's own buttons working until it is unlocked again.
 """
 
 from __future__ import annotations
@@ -92,6 +95,14 @@ def show(spa: dict, current: dict, state) -> None:
     print(f"/web/spas desiredTemp     = {(spa.get('currentState') or {}).get('desiredTemp')!r}")
     print(f"current-state desiredTemp = {current.get('desiredTemp')!r}")
 
+    web = spa.get("currentState") or {}
+    print("\n=== locks ===")
+    print(f"/web/spas panelLock       = {web.get('panelLock')!r}")
+    print(f"current-state panelLock   = {current.get('panelLock')!r}")
+    print(f"/web/spas tempLock        = {web.get('tempLock')!r}")
+    print(f"current-state tempLock    = {current.get('tempLock')!r}")
+    print(f"panel lock reads {state.panel_lock}, temperature lock reads {state.temp_lock}")
+
     print("\n=== components ===")
     if state.components is None:
         print("current-state unreadable -- light and blower would be unavailable")
@@ -129,6 +140,8 @@ async def main() -> int:
     group.add_argument("--heat-mode", choices=("ready", "rest"))
     group.add_argument("--temp", type=float, metavar="DEGREES")
     group.add_argument("--temp-c", type=float, metavar="CELSIUS")
+    group.add_argument("--panel-lock", choices=("lock", "unlock"))
+    group.add_argument("--temp-lock", choices=("lock", "unlock"))
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -206,9 +219,22 @@ async def main() -> int:
                     and abs(fresh.target_temp - value) < 0.01
                 )
 
+        elif args.panel_lock or args.temp_lock:
+            wanted = args.panel_lock or args.temp_lock
+            target, key = ("PANEL", "panelLock") if args.panel_lock else ("TEMP_SETTING", "tempLock")
+            command = f"{'LOCK' if wanted == 'lock' else 'UNLOCK'}_{target}"
+            print(f"\nSending {command} via async_set_panel_state(<spa>, {command!r})")
+            send = client.async_set_panel_state(spa_id, command)
+
+            def reached(fresh) -> bool:
+                locked = fresh.panel_lock if args.panel_lock else fresh.temp_lock
+                web_value = (fresh.raw.get("currentState") or {}).get(key)
+                print(f"/web/spas {key}={web_value} reads locked={locked}", end="  ")
+                return locked == (wanted == "lock")
+
         else:
-            print("\nRead-only. Pass --light, --blower, --heat-mode or --temp "
-                  "to send a command.")
+            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp, "
+                  "--panel-lock or --temp-lock to send a command.")
             return 0
 
         try:

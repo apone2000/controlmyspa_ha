@@ -338,3 +338,14 @@ class ControlMySpaClient:
             "temperature/heater-mode",
             {"spaId": spa_id, "via": COMMAND_VIA, "mode": mode},
         )
+
+    async def async_set_panel_state(self, spa_id: str, state: str) -> None:
+        """Lock or unlock the spa's control panel, or its temperature setting.
+
+        ``state`` is LOCK_PANEL, UNLOCK_PANEL, LOCK_TEMP_SETTING or
+        UNLOCK_TEMP_SETTING. The portal itself only sends the panel pair.
+        """
+        await self._async_command(
+            "panel/state",
+            {"spaId": spa_id, "via": COMMAND_VIA, "state": state},
+        )

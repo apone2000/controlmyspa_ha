@@ -361,6 +361,18 @@ async def test_target_temperature_command_sends_value():
     assert kwargs["json"] == {"spaId": "spa-1", "via": "WEB", "value": 101.0}
 
 
+async def test_panel_state_command_sends_state():
+    """The portal's panel lock button posts the lock action as state."""
+    session = FakeSession(post_responses=[login_response(), command_response()])
+    client = ControlMySpaClient(session, "user@example.com", "secret")
+
+    await client.async_set_panel_state("spa-1", "LOCK_PANEL")
+
+    url, kwargs = session.post_calls[1]
+    assert url.endswith("/web/spa-commands/panel/state")
+    assert kwargs["json"] == {"spaId": "spa-1", "via": "WEB", "state": "LOCK_PANEL"}
+
+
 async def test_service_refusal_raises_command_error_with_its_message():
     """Observed live: a 503 carrying a Redis out-of-memory refusal."""
     session = FakeSession(

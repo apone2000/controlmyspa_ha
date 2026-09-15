@@ -485,6 +485,8 @@ class SpaState:
         components: tuple[Component, ...] | None = None
         heater_mode = current.get("heaterMode")
         target_temp = _as_float(current.get("desiredTemp"))
+        panel_lock = bool(current.get("panelLock"))
+        temp_lock = bool(current.get("tempLock"))
         if current_state is not None:
             parsed = (
                 Component.from_api(raw)
@@ -496,6 +498,12 @@ class SpaState:
             # so prefer it for the values those controls change.
             heater_mode = current_state.get("heaterMode") or heater_mode
             target_temp = _as_float(current_state.get("desiredTemp")) or target_temp
+            # So does the portal's panel lock button. These are booleans, so a
+            # reported False must win too, not only a reported True.
+            if current_state.get("panelLock") is not None:
+                panel_lock = bool(current_state["panelLock"])
+            if current_state.get("tempLock") is not None:
+                temp_lock = bool(current_state["tempLock"])
 
         return cls(
             spa_id=str(spa.get("_id") or ""),
@@ -518,8 +526,8 @@ class SpaState:
             wifi_health=current.get("wifiConnectionHealth"),
             controller_type=current.get("controllerType"),
             controller_version=system.get("controllerSoftwareVersion"),
-            panel_lock=bool(current.get("panelLock")),
-            temp_lock=bool(current.get("tempLock")),
+            panel_lock=panel_lock,
+            temp_lock=temp_lock,
             settings_lock=bool(current.get("settingsLock")),
             access_locked=bool(current.get("accessLocked")),
             maintenance_locked=bool(current.get("maintenanceLocked")),

@@ -519,6 +519,15 @@ def test_target_temperature_prefers_current_state():
     assert _with_components(desiredTemp="").target_temp == 100.0
 
 
+def test_locks_prefer_current_state():
+    """The portal's panel lock button reads current-state, False included."""
+    assert _with_components(panelLock=True, tempLock=True).panel_lock is True
+    assert SpaState.from_api(_spa(panelLock=True), {"panelLock": False}).panel_lock is False
+    assert SpaState.from_api(_spa(tempLock=True), {"tempLock": False}).temp_lock is False
+    assert SpaState.from_api(_spa(panelLock=True), {"components": []}).panel_lock is True
+    assert SpaState.from_api(_spa(panelLock=True)).panel_lock is True
+
+
 def test_celsius_readings_use_the_portals_rounding():
     """Observed live: the portal showed 101F as 38.5 and 100F as 37.5.
 
