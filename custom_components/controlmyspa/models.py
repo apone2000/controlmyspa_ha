@@ -231,6 +231,27 @@ def command_temperature(
     return result
 
 
+def _range_limits(
+    setup: dict[str, Any], temp_range: Any
+) -> tuple[float | None, float | None]:
+    """Return the target limits setupParams gives a temperature range."""
+    if isinstance(temp_range, str) and temp_range.upper().startswith("HIGH"):
+        return _as_float(setup.get("highRangeLow")), _as_float(setup.get("highRangeHigh"))
+    return _as_float(setup.get("lowRangeLow")), _as_float(setup.get("lowRangeHigh"))
+
+
+def settable_temp_range(temp_range: str | None) -> str | None:
+    """Return the reported temperature range as the option a control offers."""
+    if not isinstance(temp_range, str):
+        return None
+    upper = temp_range.upper()
+    if upper.startswith("HIGH"):
+        return "high"
+    if upper.startswith("LOW"):
+        return "low"
+    return None
+
+
 def heater_mode_state(mode: str | None) -> str | None:
     """Return the reported heater mode as a translatable state key."""
     if isinstance(mode, str) and mode.upper() in HEATER_MODES:
@@ -396,6 +417,17 @@ class SpaState:
             current_temp_at=previous.current_temp_at,
         )
 
+    def with_temp_range(self, temp_range: str) -> SpaState:
+        """Return a copy in another temperature range, with that range's limits.
+
+        Used to show a range change straight away, thermostat limits included.
+        """
+        setup = (self.raw.get("currentState") or {}).get("setupParams") or {}
+        min_temp, max_temp = _range_limits(setup, temp_range)
+        return replace(
+            self, temp_range=temp_range, min_temp=min_temp, max_temp=max_temp
+        )
+
     def components_of(self, component_type: str) -> list[Component]:
         """Return every component of one type, in port order."""
         found = [c for c in self.components or () if c.component_type == component_type]
@@ -472,14 +504,10 @@ class SpaState:
 
         fahrenheit = detect_fahrenheit(setup, current.get("celsius"))
 
-        # Which pair of setup limits applies depends on the active range.
-        temp_range = current.get("tempRange")
-        if isinstance(temp_range, str) and temp_range.upper().startswith("HIGH"):
-            min_temp = _as_float(setup.get("highRangeLow"))
-            max_temp = _as_float(setup.get("highRangeHigh"))
-        else:
-            min_temp = _as_float(setup.get("lowRangeLow"))
-            max_temp = _as_float(setup.get("lowRangeHigh"))
+        # Which pair of setup limits applies depends on the active range. The
+        # portal's range control reads current-state, so prefer it.
+        temp_range = (current_state or {}).get("tempRange") or current.get("tempRange")
+        min_temp, max_temp = _range_limits(setup, temp_range)
 
         light_present, light_on = _parse_lighting(current, tzl)
         current_temp = _as_water_temp(current.get("currentTemp"), fahrenheit)

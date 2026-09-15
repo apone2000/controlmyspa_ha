@@ -349,3 +349,10 @@ class ControlMySpaClient:
             "panel/state",
             {"spaId": spa_id, "via": COMMAND_VIA, "state": state},
         )
+
+    async def async_set_temperature_range(self, spa_id: str, temp_range: str) -> None:
+        """Switch the spa between its HIGH and LOW temperature ranges."""
+        await self._async_command(
+            "temperature/range",
+            {"spaId": spa_id, "via": COMMAND_VIA, "range": temp_range},
+        )

@@ -15,9 +15,10 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --temp 100
     python scripts/verify_controls.py --email you@example.com --temp-c 38.0
     python scripts/verify_controls.py --email you@example.com --panel-lock lock
+    python scripts/verify_controls.py --email you@example.com --temp-range low
 
-Without --light, --blower, --heat-mode, --temp, --temp-c or --panel-lock nothing
-is sent. --temp is in the unit the spa reports; --temp-c is
+Without --light, --blower, --heat-mode, --temp, --temp-c, --panel-lock or
+--temp-range nothing is sent. --temp is in the unit the spa reports; --temp-c is
 Celsius, converted as a Celsius Home Assistant would. A locked panel stops the
 spa's own buttons working until it is unlocked again.
 """
@@ -85,6 +86,9 @@ def show(spa: dict, current: dict, state) -> None:
     print(f"current {state.current_temp} {unit}, target {state.target_temp} {unit}, "
           f"heating={state.heating}")
     print(f"range {state.temp_range}: targets {state.min_temp}-{state.max_temp} {unit}")
+    print(f"/web/spas tempRange       = {(spa.get('currentState') or {}).get('tempRange')!r}")
+    print(f"current-state tempRange   = {current.get('tempRange')!r}")
+    print(f"select.spa_temperature_range = {models.settable_temp_range(state.temp_range)!r}")
     if state.fahrenheit:
         def c(value):
             return models.display_temperature(value, True, True)
@@ -140,6 +144,7 @@ async def main() -> int:
     group.add_argument("--temp", type=float, metavar="DEGREES")
     group.add_argument("--temp-c", type=float, metavar="CELSIUS")
     group.add_argument("--panel-lock", choices=("lock", "unlock"))
+    group.add_argument("--temp-range", choices=("high", "low"))
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -228,9 +233,20 @@ async def main() -> int:
                       end="  ")
                 return fresh.panel_lock == (args.panel_lock == "lock")
 
+        elif args.temp_range:
+            wanted = args.temp_range.upper()
+            print(f"\nSending range {state.temp_range} -> {wanted} via "
+                  f"async_set_temperature_range(<spa>, {wanted!r})")
+            send = client.async_set_temperature_range(spa_id, wanted)
+
+            def reached(fresh) -> bool:
+                print(f"range={fresh.temp_range} targets {fresh.min_temp}-{fresh.max_temp} "
+                      f"target={fresh.target_temp}", end="  ")
+                return models.settable_temp_range(fresh.temp_range) == args.temp_range
+
         else:
-            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp or "
-                  "--panel-lock to send a command.")
+            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp, "
+                  "--panel-lock or --temp-range to send a command.")
             return 0
 
         try:

@@ -539,6 +539,35 @@ def test_locks_prefer_current_state():
     assert SpaState.from_api(_spa(panelLock=True)).panel_lock is True
 
 
+def test_temperature_range_prefers_current_state_and_sets_limits():
+    """The portal's range control reads current-state; limits follow the range."""
+    state = _with_components(tempRange="LOW")
+
+    assert state.temp_range == "LOW"
+    assert (state.min_temp, state.max_temp) == (50.0, 99.0)
+    assert (_with_components().min_temp, _with_components().max_temp) == (80.0, 104.0)
+
+
+def test_with_temp_range_switches_the_limits_too():
+    """A range change shows at once, thermostat limits included."""
+    state = SpaState.from_api(_spa())
+
+    low = state.with_temp_range("LOW")
+
+    assert (low.temp_range, low.min_temp, low.max_temp) == ("LOW", 50.0, 99.0)
+    assert (state.temp_range, state.max_temp) == ("HIGH", 104.0)
+    high = low.with_temp_range("HIGH")
+    assert (high.min_temp, high.max_temp) == (80.0, 104.0)
+
+
+def test_temperature_range_maps_onto_the_select_options():
+    """The select offers high and low; anything else is unknown."""
+    assert models.settable_temp_range("HIGH") == "high"
+    assert models.settable_temp_range("low") == "low"
+    assert models.settable_temp_range("") is None
+    assert models.settable_temp_range(None) is None
+
+
 def test_celsius_readings_use_the_portals_rounding():
     """Observed live: the portal showed 101F as 38.5 and 100F as 37.5.
 
