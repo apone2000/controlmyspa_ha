@@ -9,7 +9,7 @@ it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
 > **Status: early control.** Spa state is published into Home Assistant, and the
-> target temperature, light, blower and heat mode can be controlled. Jets and
+> target temperature, light, blower, heat mode and panel lock can be controlled. Jets and
 > temperature range are not implemented yet — see [Write support](#write-support).
 
 ## Requirements
@@ -126,11 +126,12 @@ limit temperature, heater mode, temperature range, run mode, error code, Wi-Fi
 health, last uplink, and the filter / water-change / ClearRay reminder counters.
 
 **Binary sensors** — online, heating, temperature reached, error, eco mode,
-soak mode, cleanup cycle, priming mode, water temperature held, and the panel /
+soak mode, cleanup cycle, priming mode, water temperature held, and the
 temperature / settings / maintenance locks.
 
 **Controls** — a thermostat, light (on/off), blower (on/off switch), heat mode
-(Ready / Rest, as a select and as a Ready mode switch), and a Refresh button.
+(Ready / Rest, as a select and as a Ready mode switch), a panel lock, and a
+Refresh button.
 
 The thermostat (`climate.spa`) shows the water temperature and sets the
 target, within the limits of the active temperature range (High or Low). It
@@ -160,6 +161,9 @@ mode** control shows Rest meanwhile.
 
 **Ready mode** is the same choice as a one-tap switch: on for Ready, off for
 Rest. It reads off during Ready-in-Rest, which is Rest mode.
+
+**Panel lock** (`lock.spa_panel_lock`) locks the spa's own control panel, so its
+buttons do nothing until it is unlocked again.
 
 A command's effect shows immediately and is re-read five seconds later to
 confirm it. If ControlMySpa refuses a command, Home Assistant shows the
@@ -275,8 +279,8 @@ All the scripts read the password from `CONTROLMYSPA_PASSWORD` or prompt for it.
 ## Write support
 
 Command formats were recovered from the ControlMySpa web portal's own
-JavaScript rather than guessed, and the temperature, light, blower and heat
-mode commands were all verified against a real spa:
+JavaScript rather than guessed, and the temperature, light, blower, heat mode
+and panel lock commands were all verified against a real spa:
 
 ```json
 POST /web/spa-commands/component-state
@@ -287,6 +291,9 @@ POST /web/spa-commands/temperature/heater-mode
 
 POST /web/spa-commands/temperature/value
 {"spaId": "...", "via": "WEB", "value": 101}
+
+POST /web/spa-commands/panel/state
+{"spaId": "...", "via": "WEB", "state": "LOCK_PANEL"}
 ```
 
 The temperature `value` is always Fahrenheit, even for spas displayed in
@@ -321,10 +328,6 @@ the portal's own JavaScript; each will be verified against a real spa with
   15-minute steps from 15 minutes to 24 hours; turn filter cycle 2 on or off
   (filter 1 always runs). (`filter-cycles/schedule` with `time` as `"HH:MM"`
   and `numOfIntervals` in 15-minute blocks; `filter-cycles/toggle-filter2-state`.)
-- **Panel lock** — lock and unlock the spa's control panel, and its
-  temperature setting, from Home Assistant; the current lock state is already
-  shown. (`panel/state` with `LOCK_PANEL` / `UNLOCK_PANEL` /
-  `LOCK_TEMP_SETTING` / `UNLOCK_TEMP_SETTING`.)
 - **Keep the held water temperature across a restart**, so it is not unknown
   until the pump next runs.
 
@@ -334,6 +337,10 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 - **Ready mode switch.** A one-tap toggle for the heat mode: on for Ready, off
   for Rest.
+- **Panel lock.** Lock and unlock the spa's control panel from Home Assistant.
+  **Breaking:** this lock entity (`lock.spa_panel_lock`) replaces the Panel lock
+  binary sensor. Update any automation that used `binary_sensor.spa_panel_lock`,
+  then delete the old entity from the device page.
 
 ### v0.2.3
 

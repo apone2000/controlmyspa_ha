@@ -105,12 +105,6 @@ BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
         value_fn=lambda spa: spa.priming_mode,
     ),
     ControlMySpaBinarySensorDescription(
-        key="panel_lock",
-        translation_key="panel_lock",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda spa: spa.panel_lock,
-    ),
-    ControlMySpaBinarySensorDescription(
         key="temp_lock",
         translation_key="temp_lock",
         entity_category=EntityCategory.DIAGNOSTIC,

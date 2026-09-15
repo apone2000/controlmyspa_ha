@@ -77,7 +77,6 @@
       "soak_mode": { "name": "Soak mode" },
       "cleanup_cycle": { "name": "Cleanup cycle" },
       "priming_mode": { "name": "Priming mode" },
-      "panel_lock": { "name": "Panel lock" },
       "temp_lock": { "name": "Temperature lock" },
       "settings_lock": { "name": "Settings lock" },
       "maintenance_locked": { "name": "Maintenance lock" }
@@ -114,6 +113,9 @@
     },
     "button": {
       "refresh": { "name": "Refresh" }
+    },
+    "lock": {
+      "panel_lock": { "name": "Panel lock" }
     }
   }
 }

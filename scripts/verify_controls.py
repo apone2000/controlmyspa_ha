@@ -15,10 +15,9 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --temp 100
     python scripts/verify_controls.py --email you@example.com --temp-c 38.0
     python scripts/verify_controls.py --email you@example.com --panel-lock lock
-    python scripts/verify_controls.py --email you@example.com --temp-lock unlock
 
-Without --light, --blower, --heat-mode, --temp, --temp-c, --panel-lock or
---temp-lock nothing is sent. --temp is in the unit the spa reports; --temp-c is
+Without --light, --blower, --heat-mode, --temp, --temp-c or --panel-lock nothing
+is sent. --temp is in the unit the spa reports; --temp-c is
 Celsius, converted as a Celsius Home Assistant would. A locked panel stops the
 spa's own buttons working until it is unlocked again.
 """
@@ -141,7 +140,6 @@ async def main() -> int:
     group.add_argument("--temp", type=float, metavar="DEGREES")
     group.add_argument("--temp-c", type=float, metavar="CELSIUS")
     group.add_argument("--panel-lock", choices=("lock", "unlock"))
-    group.add_argument("--temp-lock", choices=("lock", "unlock"))
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -219,22 +217,20 @@ async def main() -> int:
                     and abs(fresh.target_temp - value) < 0.01
                 )
 
-        elif args.panel_lock or args.temp_lock:
-            wanted = args.panel_lock or args.temp_lock
-            target, key = ("PANEL", "panelLock") if args.panel_lock else ("TEMP_SETTING", "tempLock")
-            command = f"{'LOCK' if wanted == 'lock' else 'UNLOCK'}_{target}"
+        elif args.panel_lock:
+            command = "LOCK_PANEL" if args.panel_lock == "lock" else "UNLOCK_PANEL"
             print(f"\nSending {command} via async_set_panel_state(<spa>, {command!r})")
             send = client.async_set_panel_state(spa_id, command)
 
             def reached(fresh) -> bool:
-                locked = fresh.panel_lock if args.panel_lock else fresh.temp_lock
-                web_value = (fresh.raw.get("currentState") or {}).get(key)
-                print(f"/web/spas {key}={web_value} reads locked={locked}", end="  ")
-                return locked == (wanted == "lock")
+                web_value = (fresh.raw.get("currentState") or {}).get("panelLock")
+                print(f"/web/spas panelLock={web_value} reads locked={fresh.panel_lock}",
+                      end="  ")
+                return fresh.panel_lock == (args.panel_lock == "lock")
 
         else:
-            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp, "
-                  "--panel-lock or --temp-lock to send a command.")
+            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp or "
+                  "--panel-lock to send a command.")
             return 0
 
         try:

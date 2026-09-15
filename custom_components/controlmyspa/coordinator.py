@@ -145,6 +145,16 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
         self.async_set_updated_data(replace(self.data, heater_mode=mode))
         self._schedule_confirmation()
 
+    async def async_set_panel_lock(self, locked: bool) -> None:
+        """Lock or unlock the spa's control panel and show it straight away."""
+        await self._async_send(
+            self.client.async_set_panel_state(
+                self.data.spa_id, "LOCK_PANEL" if locked else "UNLOCK_PANEL"
+            )
+        )
+        self.async_set_updated_data(replace(self.data, panel_lock=locked))
+        self._schedule_confirmation()
+
     async def _async_send(self, command: Awaitable[None]) -> None:
         """Await a command, turning a refusal into an error the user sees."""
         try:
