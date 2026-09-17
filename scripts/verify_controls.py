@@ -332,7 +332,13 @@ async def main() -> int:
                     shown.append(f"CIRC={circ.value}")
                 print(" ".join(shown), end="  ")
                 match = fresh.component("PUMP", port)
-                return match is not None and match.value == wanted
+                if match is None:
+                    return False
+                # A single-speed pump answers LOW by running, and reports HIGH.
+                # Asking for any running state is satisfied by any running state.
+                if wanted != "OFF":
+                    return match.is_on
+                return match.value == wanted
 
         elif args.time:
             if args.time == "now":
