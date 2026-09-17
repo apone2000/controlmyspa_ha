@@ -455,6 +455,10 @@ the portal's own JavaScript; each will be verified against a real spa with
 - **Sync time button.** `button.spa_sync_time` sets that clock from Home
   Assistant's local time, for correcting drift and daylight saving. Both
   entities are unavailable while the spa reports its controller link is down.
+- **Setting the heat mode it is already in no longer fails.** ControlMySpa
+  treats that endpoint as a toggle and refuses a no-op change while reporting
+  that it succeeded, which surfaced in Home Assistant as a failed action.
+  Choosing the mode the spa is already in now does nothing, quietly.
 - **Command failures say more.** A refusal now carries the HTTP status and the
   service's own success flag alongside its message, because ControlMySpa has
   been seen refusing a command with text that says it worked. A reply whose

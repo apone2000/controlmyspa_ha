@@ -20,7 +20,13 @@ from .api import (
     ControlMySpaError,
 )
 from .const import COMMAND_REFRESH_DELAY, DOMAIN
-from .models import Component, SpaState, command_temperature, command_time
+from .models import (
+    Component,
+    SpaState,
+    command_temperature,
+    command_time,
+    settable_heater_mode,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,7 +144,19 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
         self._schedule_confirmation()
 
     async def async_set_heater_mode(self, mode: str) -> None:
-        """Switch the heater mode and show the result without waiting for a poll."""
+        """Switch the heater mode and show the result without waiting for a poll.
+
+        The service treats this endpoint as a toggle rather than a setter:
+        asking for the mode the spa is already in answers HTTP 200 with
+        ``success: false`` and the message "Heater mode toggled successfully",
+        which would otherwise surface in Home Assistant as a failed action.
+        There is nothing to do in that case, so nothing is sent.
+
+        Ready-in-Rest counts as Rest here, the way the Heat mode select shows
+        it, because the spa returns to Rest from it by itself.
+        """
+        if settable_heater_mode(self.data.heater_mode) == mode.lower():
+            return
         await self._async_send(
             self.client.async_set_heater_mode(self.data.spa_id, mode)
         )
