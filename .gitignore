@@ -22,5 +22,6 @@ venv/
 .DS_Store
 controlmyspa-*.zip
 
-# Local session notes, not part of the project
+# Local session notes and reference, not part of the project
 HANDOFF.md
+API.md
