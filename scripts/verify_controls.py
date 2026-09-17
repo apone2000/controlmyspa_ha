@@ -321,8 +321,17 @@ async def main() -> int:
             )
 
             def reached(fresh) -> bool:
+                # Every pump, not just the target: sending jet #0 was seen
+                # starting the circulation pump while PUMP 0 never moved, so
+                # the one that answers has to be found rather than assumed.
+                shown = []
+                for other in fresh.components_of("PUMP"):
+                    shown.append(f"PUMP{other.port}={other.value}")
+                circ = fresh.component("CIRCULATION_PUMP", None)
+                if circ is not None:
+                    shown.append(f"CIRC={circ.value}")
+                print(" ".join(shown), end="  ")
                 match = fresh.component("PUMP", port)
-                print(f"value={match.value if match else None}", end="  ")
                 return match is not None and match.value == wanted
 
         elif args.time:
