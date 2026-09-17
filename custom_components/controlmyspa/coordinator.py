@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable
 from dataclasses import replace
@@ -19,14 +20,8 @@ from .api import (
     ControlMySpaClient,
     ControlMySpaError,
 )
-from .const import COMMAND_REFRESH_DELAY, DOMAIN
-from .models import (
-    Component,
-    SpaState,
-    command_temperature,
-    command_time,
-    settable_heater_mode,
-)
+from .const import COMMAND_REFRESH_DELAY, DOMAIN, HEATER_MODE_TOGGLE_DELAY
+from .models import Component, SpaState, command_temperature, command_time
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,21 +141,33 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
     async def async_set_heater_mode(self, mode: str) -> None:
         """Switch the heater mode and show the result without waiting for a poll.
 
-        The service treats this endpoint as a toggle rather than a setter:
+        The service treats this endpoint as a toggle rather than a setter, so
         asking for the mode the spa is already in answers HTTP 200 with
-        ``success: false`` and the message "Heater mode toggled successfully",
-        which would otherwise surface in Home Assistant as a failed action.
-        There is nothing to do in that case, so nothing is sent.
+        ``success: false`` and the message "Heater mode toggled successfully".
+        Nothing needs doing in that case, so nothing is sent.
 
-        Ready-in-Rest counts as Rest here, the way the Heat mode select shows
-        it, because the spa returns to Rest from it by itself.
+        Ready-in-Rest is Rest that the jets pushed into heating for an hour. The
+        service already counts it as Rest, so asking for Rest to end it early is
+        refused the same way. Toggling to Ready and straight back is what clears
+        it -- the same thing an owner does by hand in the ControlMySpa app.
         """
-        if settable_heater_mode(self.data.heater_mode) == mode.lower():
+        wanted = mode.upper()
+        current = (self.data.heater_mode or "").upper()
+        if current == wanted:
             return
-        await self._async_send(
-            self.client.async_set_heater_mode(self.data.spa_id, mode)
-        )
-        self.async_set_updated_data(replace(self.data, heater_mode=mode))
+
+        spa_id = self.data.spa_id
+        if wanted == "REST" and current == "READY_REST":
+            await self._async_send(
+                self.client.async_set_heater_mode(spa_id, "READY")
+            )
+            # Leaving the spa in Ready would be worse than leaving it in
+            # Ready-in-Rest, so the second half must still be attempted even if
+            # the wait is interrupted.
+            await asyncio.sleep(HEATER_MODE_TOGGLE_DELAY)
+
+        await self._async_send(self.client.async_set_heater_mode(spa_id, wanted))
+        self.async_set_updated_data(replace(self.data, heater_mode=wanted))
         self._schedule_confirmation()
 
     async def async_set_panel_lock(self, locked: bool) -> None:

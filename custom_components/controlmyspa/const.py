@@ -21,6 +21,12 @@ ENDPOINT_COMMANDS: Final = f"{API_ROOT}/spa-commands"
 # service accepts are MOBILE, GATEWAY, SCHEDULED and ALEXA.
 COMMAND_VIA: Final = "WEB"
 
+# Ready-in-Rest already reads as Rest to the service, so asking for Rest is
+# refused as a no-op. Toggling to Ready and straight back clears it. This is how
+# long to wait between the two halves; the service reflects a command in about
+# three seconds, but the pair only has to arrive in order.
+HEATER_MODE_TOGGLE_DELAY: Final = 1
+
 # How long to wait after an accepted command before re-reading state. The
 # service reflected commands within three seconds when tested, so reading back
 # immediately would fetch the old value and briefly undo the optimistic update.

@@ -455,6 +455,9 @@ the portal's own JavaScript; each will be verified against a real spa with
 - **Sync time button.** `button.spa_sync_time` sets that clock from Home
   Assistant's local time, for correcting drift and daylight saving. Both
   entities are unavailable while the spa reports its controller link is down.
+- **Ending Ready-in-Rest now works.** Ready-in-Rest already counts as Rest to
+  ControlMySpa, so asking for Rest to end it early is refused as a no-op.
+  Choosing Rest now toggles to Ready and straight back, which clears it.
 - **Setting the heat mode it is already in no longer fails.** ControlMySpa
   treats that endpoint as a toggle and refuses a no-op change while reporting
   that it succeeded, which surfaced in Home Assistant as a failed action.
