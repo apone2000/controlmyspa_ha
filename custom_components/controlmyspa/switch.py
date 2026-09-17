@@ -20,20 +20,30 @@ async def async_setup_entry(
     entry: ControlMySpaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Ready mode switch and one switch per BLOWER component."""
+    """Set up Ready mode, and one switch per blower and per jet pump."""
     coordinator = entry.runtime_data
     entities: list[SwitchEntity] = [ControlMySpaReadyModeSwitch(coordinator, READY_MODE)]
-    entities.extend(
-        ControlMySpaSwitch(coordinator, description, component)
-        for description, component in describe_components(
-            coordinator.data, "BLOWER", "blower", SwitchEntityDescription
+    for component_type, key in (("BLOWER", "blower"), ("PUMP", "jet")):
+        entities.extend(
+            ControlMySpaSwitch(coordinator, description, component)
+            for description, component in describe_components(
+                coordinator.data, component_type, key, SwitchEntityDescription
+            )
         )
-    )
     async_add_entities(entities)
 
 
 class ControlMySpaSwitch(ControlMySpaOnOffEntity, SwitchEntity):
-    """A spa blower as a plain on/off switch, on at its strongest setting."""
+    """A blower or jet pump as a plain on/off switch.
+
+    A blower switches on at its strongest setting; a pump at its lowest,
+    because a stopped pump ignores a request for its highest. Either way it
+    reads on at any setting other than off, so a pump that answers LOW by
+    running at HIGH still shows as on.
+
+    One switch per component the spa reports, so a jet the spa advertises but
+    the tub does not have can simply be disabled in Home Assistant.
+    """
 
 
 class ControlMySpaReadyModeSwitch(ControlMySpaEntity, SwitchEntity):

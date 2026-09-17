@@ -285,6 +285,11 @@ def settable_heater_mode(mode: str | None) -> str | None:
     return None
 
 
+# Components that must be started at their lowest setting rather than their
+# strongest. See Component.on_value.
+_START_AT_LOWEST = frozenset({"PUMP"})
+
+
 @dataclass(frozen=True)
 class Component:
     """One controllable device from the current-state components array."""
@@ -341,13 +346,20 @@ class Component:
     def on_value(self) -> str:
         """Return the state to send when switching this component on.
 
-        The strongest setting it offers. Confirmed live as HIGH on a light
-        offering OFF and HIGH.
+        The strongest setting it offers -- confirmed live as HIGH on a light
+        offering OFF and HIGH, and on a blower offering OFF, LOW, MED and HIGH.
+
+        Pumps are the exception: a stopped pump asked for HIGH stays stopped,
+        silently, while the same pump asked for LOW starts. Verified on two
+        pumps on 2026-09-17, which then both reported HIGH -- they advertise
+        three states but have one speed. So a pump is started at its lowest
+        setting, and what it reports afterwards is its own business.
         """
         choices = [value for value in self.available_values if value not in _OFF_VALUES]
         if not choices:
             return "ON"
-        return max(choices, key=lambda value: _VALUE_RANK.get(value, 0))
+        pick = min if self.component_type in _START_AT_LOWEST else max
+        return pick(choices, key=lambda value: _VALUE_RANK.get(value, 0))
 
     @property
     def command_type(self) -> str | None:

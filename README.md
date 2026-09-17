@@ -147,6 +147,7 @@ them.
 | Temperature range | `select.spa_temperature_range` | High / Low |
 | Light | `light.spa_light` | On / off; only if the spa reports a light |
 | Blower | `switch.spa_blower` | On / off; only if the spa reports a blower |
+| Jet 1, 2, … | `switch.spa_jet_1` | One per pump the spa reports |
 | Panel lock | `lock.spa_panel_lock` | Locks the spa's own buttons |
 | Time | `time.spa_time` | The spa's own clock, which schedules filtering |
 | Sync time | `button.spa_sync_time` | Sets the clock from Home Assistant |
@@ -224,9 +225,17 @@ every value the spa can display sets exactly. A few half steps have no
 whole-°F equivalent — 38.0 °C falls between 100 °F (37.5) and 101 °F (38.5) —
 and settle on a neighbour, just as they do in the portal.
 
-The light and blower are created from the devices the spa itself
+The light, blower and jets are created from the devices the spa itself
 reports, so a spa without a blower gets no blower switch, and a spa with
-several lights gets them numbered. Both switch on at their strongest setting.
+several lights or jets gets them numbered. A spa that advertises a jet the tub
+does not have still gets a switch for it, which you can disable from the device
+page.
+
+The light and blower switch on at their strongest setting. **Jets are started at
+their lowest**, because a stopped pump asked for its highest setting stays
+stopped without reporting an error, while the same pump asked for its lowest
+starts — and a single-speed pump then reports the highest setting regardless. A
+jet reads on at any setting other than off.
 
 The **Heater mode** sensor reports Ready, Rest, or Ready-in-Rest. Ready-in-Rest
 means the spa is in Rest mode but the jets have been used, so it heats for an
@@ -468,6 +477,11 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ### Unreleased
 
+- **Jet switches.** One per pump the spa reports, `switch.spa_jet_1` and so
+  on, so a jet your tub does not actually have can simply be disabled. A pump
+  is started at its lowest setting: a stopped pump asked for its highest stays
+  stopped, silently, while the same pump asked for its lowest starts — and then
+  reports the highest anyway.
 - **Circulation pump sensor.** `binary_sensor.spa_circulation_pump` reports
   whether the pump is running, for spas that have one. Read-only: the spa runs
   it on its own schedule and while heating, so a switch would fight it.

@@ -14,6 +14,12 @@
         "state": {
           "on": "mdi:fire"
         }
+      },
+      "jet": {
+        "default": "mdi:chart-bubble"
+      },
+      "jet_numbered": {
+        "default": "mdi:chart-bubble"
       }
     },
     "time": {

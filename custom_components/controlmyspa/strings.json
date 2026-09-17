@@ -104,6 +104,8 @@
     "switch": {
       "blower": { "name": "Blower" },
       "blower_numbered": { "name": "Blower {number}" },
+      "jet": { "name": "Jet" },
+      "jet_numbered": { "name": "Jet {number}" },
       "ready_mode": { "name": "Ready mode" }
     },
     "time": {

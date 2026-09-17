@@ -803,3 +803,33 @@ def test_heater_cooling_does_not_decide_heating():
 def test_heater_cooling_is_the_fallback_without_components():
     """With current-state unreadable there is nothing better to go on."""
     assert SpaState.from_api(_spa(heaterCooling=True)).heating is True
+
+
+def test_a_pump_is_started_at_its_lowest_setting():
+    """A stopped pump ignores HIGH; LOW is what starts it."""
+    pump = _with_components([
+        {"componentType": "PUMP", "port": 0, "value": "OFF",
+         "availableValues": ["OFF", "LOW", "HIGH"]},
+    ]).component("PUMP", 0)
+
+    assert pump.on_value == "LOW"
+
+
+def test_a_blower_is_still_started_at_its_strongest():
+    """Only pumps are the exception; the blower was verified live on HIGH."""
+    blower = _with_components([
+        {"componentType": "BLOWER", "port": 0, "value": "OFF",
+         "availableValues": ["OFF", "LOW", "MED", "HIGH"]},
+    ]).component("BLOWER", 0)
+
+    assert blower.on_value == "HIGH"
+
+
+def test_a_pump_running_at_high_reads_as_on():
+    """A single-speed pump answers LOW by running and reporting HIGH."""
+    pump = _with_components([
+        {"componentType": "PUMP", "port": 0, "value": "HIGH",
+         "availableValues": ["OFF", "LOW", "HIGH"]},
+    ]).component("PUMP", 0)
+
+    assert pump.is_on is True
