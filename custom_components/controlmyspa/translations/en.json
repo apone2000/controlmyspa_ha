@@ -63,7 +63,9 @@
       "reminder_filter1": { "name": "Filter 1 reminder" },
       "reminder_filter2": { "name": "Filter 2 reminder" },
       "reminder_water": { "name": "Water change reminder" },
-      "reminder_clearray": { "name": "ClearRay reminder" }
+      "reminder_clearray": { "name": "ClearRay reminder" },
+      "filter_start_time": { "name": "Filter {number} start time" },
+      "filter_duration": { "name": "Filter {number} duration" }
     },
     "binary_sensor": {
       "online": { "name": "Online" },

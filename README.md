@@ -170,6 +170,10 @@ them.
 | Filter 2 reminder | `sensor.spa_filter_2_reminder` | Diagnostic, days, disabled |
 | Water change reminder | `sensor.spa_water_change_reminder` | Diagnostic, days |
 | ClearRay reminder | `sensor.spa_clearray_reminder` | Diagnostic, days, disabled |
+| Filter 1 start time | `sensor.spa_filter_1_start_time` | Diagnostic; `HH:MM` |
+| Filter 1 duration | `sensor.spa_filter_1_duration` | Diagnostic, minutes |
+| Filter 2 start time | `sensor.spa_filter_2_start_time` | Diagnostic; `HH:MM` |
+| Filter 2 duration | `sensor.spa_filter_2_duration` | Diagnostic, minutes |
 
 **Binary sensors**
 
@@ -264,6 +268,19 @@ automation:
 Both are unavailable while the spa reports that its controller link (RS485) is
 down, because the controller is what keeps the time — the ControlMySpa portal
 disables its own dialog for the same reason.
+
+**Filter cycles** are reported as one pair of sensors per cycle the spa has:
+when it starts, and how many minutes it runs for. They are **read-only on
+purpose.** ControlMySpa accepts a schedule change and then either ignores it or
+applies a different one — saving in the ControlMySpa portal itself resets the
+times — so a control here would claim to have done something it had not.
+
+Each sensor carries a `status` attribute holding the cycle's own state: `ON`
+means the cycle is **enabled**, not that it is filtering at this moment, and
+`DISABLED` means it is switched off, so its start and duration are inert. The
+spa reports no field for "filtering right now" — that can only be worked out
+from the start and duration against **Time** (`time.spa_time`), the clock the
+spa schedules from.
 
 ### Temperature units
 
@@ -438,6 +455,11 @@ the portal's own JavaScript; each will be verified against a real spa with
 - **Sync time button.** `button.spa_sync_time` sets that clock from Home
   Assistant's local time, for correcting drift and daylight saving. Both
   entities are unavailable while the spa reports its controller link is down.
+- **Filter cycle schedules.** `sensor.spa_filter_N_start_time` and
+  `sensor.spa_filter_N_duration` report when each cycle starts and how long it
+  runs, with the cycle's own `ON` / `OFF` / `DISABLED` state as a `status`
+  attribute. Read-only: ControlMySpa does not reliably apply a schedule change,
+  even from its own portal.
 
 ### v0.2.4
 

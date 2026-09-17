@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
-from .entity import ControlMySpaComponentEntity, ControlMySpaEntity, describe_components
+from .entity import ControlMySpaEntity, ControlMySpaOnOffEntity, describe_components
 from .models import settable_heater_mode
 
 READY_MODE = SwitchEntityDescription(key="ready_mode", translation_key="ready_mode")
@@ -32,7 +32,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ControlMySpaSwitch(ControlMySpaComponentEntity, SwitchEntity):
+class ControlMySpaSwitch(ControlMySpaOnOffEntity, SwitchEntity):
     """A spa blower as a plain on/off switch, on at its strongest setting."""
 
 

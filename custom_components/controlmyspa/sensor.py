@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
-from .entity import ControlMySpaEntity
+from .entity import ControlMySpaComponentEntity, ControlMySpaEntity
 from .models import HEATER_MODES, SpaState, display_temperature, heater_mode_state
 
 
@@ -154,9 +154,38 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     coordinator = entry.runtime_data
-    async_add_entities(
+    entities: list[SensorEntity] = [
         ControlMySpaSensor(coordinator, description) for description in SENSORS
-    )
+    ]
+    # One pair per filter cycle the spa reports, numbered from the port the way
+    # the spa's own panel and the filter reminders count them.
+    for component in coordinator.data.components_of("FILTER"):
+        port = component.port or 0
+        entities.append(
+            ControlMySpaFilterSensor(
+                coordinator,
+                SensorEntityDescription(
+                    key=f"filter_{port}_start_time",
+                    translation_key="filter_start_time",
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                ),
+                component,
+            )
+        )
+        entities.append(
+            ControlMySpaFilterSensor(
+                coordinator,
+                SensorEntityDescription(
+                    key=f"filter_{port}_duration",
+                    translation_key="filter_duration",
+                    device_class=SensorDeviceClass.DURATION,
+                    native_unit_of_measurement=UnitOfTime.MINUTES,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                ),
+                component,
+            )
+        )
+    async_add_entities(entities)
 
 
 class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
@@ -207,3 +236,40 @@ class ControlMySpaSensor(ControlMySpaEntity, SensorEntity):
         if self.entity_description.always_available:
             return self.coordinator.last_update_success
         return super().available
+
+
+class ControlMySpaFilterSensor(ControlMySpaComponentEntity, SensorEntity):
+    """One reading from a filter cycle's schedule: its start, or its length.
+
+    Read-only by design. ControlMySpa accepts a schedule change and then either
+    ignores it or applies a different one -- the portal does the same to itself
+    -- so a writable control here would lie about what it had done.
+
+    The value reported is the schedule, not whether the cycle is running now:
+    a cycle reads ON whenever it is enabled, hours outside its own window. The
+    spa gives no field for "filtering right now"; it can only be worked out
+    from this start and duration against the spa's own clock.
+    """
+
+    @property
+    def native_value(self) -> Any:
+        """Return the start time as HH:MM, or the length in minutes."""
+        component = self.component
+        if component is None:
+            return None
+        if self.entity_description.device_class == SensorDeviceClass.DURATION:
+            return component.duration_minutes
+        start = component.start_time
+        return None if start is None else start.strftime("%H:%M")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Report whether the cycle is switched on at all.
+
+        Without this a disabled cycle still shows a start and a length, which
+        reads as a schedule that runs. ON means enabled, not running.
+        """
+        component = self.component
+        if component is None:
+            return None
+        return {"status": component.value}

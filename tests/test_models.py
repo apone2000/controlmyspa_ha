@@ -740,3 +740,34 @@ def test_rs485_inactive_is_reported_as_false():
     state = _with_components(hour=14, minute=5, rs485ConnectionActive=False)
 
     assert state.rs485_active is False
+
+
+def test_filter_components_carry_their_schedule():
+    """FILTER entries report when the cycle starts and how long it runs."""
+    state = _with_components([
+        {"componentType": "FILTER", "port": 0, "value": "ON",
+         "hour": 0, "minute": 15, "durationMinutes": 315},
+    ])
+    cycle = state.component("FILTER", 0)
+
+    assert cycle is not None
+    assert cycle.start_time == time(0, 15)
+    assert cycle.duration_minutes == 315
+
+
+def test_a_filter_starting_at_midnight_is_not_treated_as_unreported():
+    """00:00 is a real start time, and the default for filter 2."""
+    state = _with_components([
+        {"componentType": "FILTER", "port": 1, "value": "DISABLED",
+         "hour": 0, "minute": 0, "durationMinutes": 15},
+    ])
+
+    assert state.component("FILTER", 1).start_time == time(0, 0)
+
+
+def test_a_component_without_a_schedule_reports_none():
+    """Only FILTER entries carry one; everything else must not invent it."""
+    light = _with_components().component("LIGHT", 0)
+
+    assert light.start_time is None
+    assert light.duration_minutes is None

@@ -20,6 +20,14 @@
       "spa_time": {
         "default": "mdi:clock-outline"
       }
+    },
+    "sensor": {
+      "filter_start_time": {
+        "default": "mdi:clock-start"
+      },
+      "filter_duration": {
+        "default": "mdi:timer-sand"
+      }
     }
   }
 }

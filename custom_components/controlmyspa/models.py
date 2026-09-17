@@ -293,6 +293,10 @@ class Component:
     port: int | None
     value: str
     available_values: tuple[str, ...] = ()
+    # FILTER entries only: when the cycle starts and how long it runs for.
+    hour: int | None = None
+    minute: int | None = None
+    duration_minutes: int | None = None
 
     @classmethod
     def from_api(cls, raw: dict[str, Any]) -> Component | None:
@@ -308,7 +312,25 @@ class Component:
                 normalise_component_value(value, component_type)
                 for value in raw.get("availableValues") or []
             ),
+            # Midnight and zero minutes past are real, so _as_int rather than
+            # the _as_int_reported that treats 0 as absent hardware.
+            hour=_as_int(raw.get("hour")),
+            minute=_as_int(raw.get("minute")),
+            duration_minutes=_as_int(raw.get("durationMinutes")),
         )
+
+    @property
+    def start_time(self) -> time | None:
+        """Return when a filter cycle starts, or None if it reports no schedule.
+
+        Only FILTER components carry one. Zero is midnight, not a missing
+        value, so the hour and minute are checked for None explicitly.
+        """
+        if self.hour is None or self.minute is None:
+            return None
+        if not 0 <= self.hour <= 23 or not 0 <= self.minute <= 59:
+            return None
+        return time(self.hour, self.minute)
 
     @property
     def is_on(self) -> bool:
