@@ -72,9 +72,10 @@ def flatten(node: Any, prefix: str = "") -> dict[str, Any]:
             found.update(flatten(value, f"{prefix}[{index}]"))
     else:
         leaf = prefix.rsplit(".", 1)[-1].split("[")[0]
-        if isinstance(node, (bool, int, float)):
-            found[prefix] = node
-        elif isinstance(node, str) and leaf in SAFE_STRINGS:
+        # Numbers and booleans are always safe; strings only from the allowlist.
+        if isinstance(node, (bool, int, float)) or (
+            isinstance(node, str) and leaf in SAFE_STRINGS
+        ):
             found[prefix] = node
     return found
 
