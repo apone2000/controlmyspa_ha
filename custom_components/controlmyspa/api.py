@@ -350,6 +350,26 @@ class ControlMySpaClient:
             {"spaId": spa_id, "via": COMMAND_VIA, "state": state},
         )
 
+    async def async_set_spa_time(
+        self, spa_id: str, value: str, military: bool
+    ) -> None:
+        """Set the spa's own clock, as HH:MM in 24-hour form.
+
+        ``military`` is the spa's 12/24-hour display setting, which travels
+        with every call. The portal only ever sends this command to switch that
+        setting, keeping the time it already read, so setting a genuinely new
+        time is untested against the hardware.
+        """
+        await self._async_command(
+            "time",
+            {
+                "spaId": spa_id,
+                "via": COMMAND_VIA,
+                "time": value,
+                "isMilitaryFormat": military,
+            },
+        )
+
     async def async_set_temperature_range(self, spa_id: str, temp_range: str) -> None:
         """Switch the spa between its HIGH and LOW temperature ranges."""
         await self._async_command(

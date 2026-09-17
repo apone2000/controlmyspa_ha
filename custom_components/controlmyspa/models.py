@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 
 from .const import FAHRENHEIT_THRESHOLD, STALE_AFTER, STALE_GRACE
@@ -231,6 +231,16 @@ def command_temperature(
     return result
 
 
+def command_time(value: time) -> str:
+    """Return the HH:MM string the time command takes.
+
+    Always 24-hour. ``isMilitaryFormat`` travels with it as the spa's display
+    setting, not a different way of writing the time, so the format the spa
+    shows is kept rather than changed by setting the clock.
+    """
+    return f"{value.hour:02d}:{value.minute:02d}"
+
+
 def _range_limits(
     setup: dict[str, Any], temp_range: Any
 ) -> tuple[float | None, float | None]:
@@ -367,6 +377,16 @@ class SpaState:
     controller_type: str | None = None
     controller_version: str | None = None
 
+    # The spa's own clock. The controller keeps it, so the portal's Set time
+    # dialog is disabled unless rs485_active. There are no seconds and no date,
+    # so it drifts and has to be re-synced after a clock change.
+    spa_hour: int | None = None
+    spa_minute: int | None = None
+    spa_military: bool | None = None
+    # None when the spa never reports it, which must not read as a dead
+    # controller -- only an explicit False means the clock is unreachable.
+    rs485_active: bool | None = None
+
     panel_lock: bool = False
     temp_lock: bool = False
     settings_lock: bool = False
@@ -416,6 +436,24 @@ class SpaState:
             current_temp_held=True,
             current_temp_at=previous.current_temp_at,
         )
+
+    @property
+    def spa_time(self) -> time | None:
+        """Return the spa's own clock, or None when it reports no usable one.
+
+        Hour and minute are whole numbers with no seconds, so this is only ever
+        accurate to the minute. Zero is a real hour here, unlike the reminder
+        counters, so a missing value has to be None rather than falsy.
+        """
+        if self.spa_hour is None or self.spa_minute is None:
+            return None
+        if not 0 <= self.spa_hour <= 23 or not 0 <= self.spa_minute <= 59:
+            return None
+        return time(self.spa_hour, self.spa_minute)
+
+    def with_spa_time(self, value: time) -> SpaState:
+        """Return a copy showing a new clock reading straight away."""
+        return replace(self, spa_hour=value.hour, spa_minute=value.minute)
 
     def with_temp_range(self, temp_range: str) -> SpaState:
         """Return a copy in another temperature range, with that range's limits.
@@ -518,6 +556,12 @@ class SpaState:
         target_temp = _as_float(current.get("desiredTemp"))
         panel_lock = bool(current.get("panelLock"))
         temp_lock = bool(current.get("tempLock"))
+        # Zero is midnight and zero minutes past, so _as_int, not the
+        # _as_int_reported that treats a controller's 0 as "no hardware".
+        spa_hour = _as_int(current.get("hour"))
+        spa_minute = _as_int(current.get("minute"))
+        spa_military = current.get("military")
+        rs485_active = current.get("rs485ConnectionActive")
         if current_state is not None:
             parsed = (
                 Component.from_api(raw)
@@ -535,6 +579,15 @@ class SpaState:
                 panel_lock = bool(current_state["panelLock"])
             if current_state.get("tempLock") is not None:
                 temp_lock = bool(current_state["tempLock"])
+            # The portal's Set time dialog reads the clock from current-state.
+            if current_state.get("hour") is not None:
+                spa_hour = _as_int(current_state["hour"])
+            if current_state.get("minute") is not None:
+                spa_minute = _as_int(current_state["minute"])
+            if current_state.get("military") is not None:
+                spa_military = current_state["military"]
+            if current_state.get("rs485ConnectionActive") is not None:
+                rs485_active = current_state["rs485ConnectionActive"]
 
         return cls(
             spa_id=str(spa.get("_id") or ""),
@@ -558,6 +611,10 @@ class SpaState:
             wifi_health=current.get("wifiConnectionHealth"),
             controller_type=current.get("controllerType"),
             controller_version=system.get("controllerSoftwareVersion"),
+            spa_hour=spa_hour,
+            spa_minute=spa_minute,
+            spa_military=None if spa_military is None else bool(spa_military),
+            rs485_active=None if rs485_active is None else bool(rs485_active),
             panel_lock=panel_lock,
             temp_lock=temp_lock,
             settings_lock=bool(current.get("settingsLock")),

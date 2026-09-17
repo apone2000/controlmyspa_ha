@@ -7,7 +7,7 @@ of the real data are covered rather than an idealised version of it.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from conftest import models
 
@@ -677,3 +677,66 @@ def test_empty_payload_does_not_raise():
     assert state.spa_id == "x"
     assert state.current_temp is None
     assert state.available is False
+
+
+def test_spa_clock_is_read_from_current_state():
+    """The portal's Set time dialog reads the clock from current-state."""
+    state = _with_components(hour=14, minute=5, military=True,
+                             rs485ConnectionActive=True)
+
+    assert state.spa_time == time(14, 5)
+    assert state.spa_military is True
+    assert state.rs485_active is True
+
+
+def test_current_state_clock_wins_over_the_spas_record():
+    """Both records carry a clock; current-state is the one the portal trusts."""
+    spa = _spa(hour=9, minute=0)
+    state = SpaState.from_api(spa, {"components": [], "hour": 14, "minute": 5})
+
+    assert state.spa_time == time(14, 5)
+
+
+def test_midnight_is_a_real_clock_reading():
+    """Hour and minute of zero mean 00:00, not a controller reporting nothing."""
+    state = _with_components(hour=0, minute=0)
+
+    assert state.spa_time == time(0, 0)
+
+
+def test_a_spa_reporting_no_clock_reads_none():
+    """Absent hour or minute is unknown rather than an invented midnight."""
+    assert _with_components().spa_time is None
+    assert _with_components(hour=14).spa_time is None
+
+
+def test_out_of_range_clock_values_are_rejected():
+    """A nonsense reading must not raise out of the parser."""
+    assert _with_components(hour=25, minute=0).spa_time is None
+    assert _with_components(hour=12, minute=99).spa_time is None
+
+
+def test_with_spa_time_shows_a_new_reading_immediately():
+    """Commands update the snapshot optimistically before the spa confirms."""
+    state = _with_components(hour=9, minute=0).with_spa_time(time(14, 30))
+
+    assert state.spa_time == time(14, 30)
+
+
+def test_command_time_is_always_24_hour_hh_mm():
+    """The command takes 24-hour HH:MM whatever the spa displays."""
+    assert models.command_time(time(9, 5)) == "09:05"
+    assert models.command_time(time(23, 59)) == "23:59"
+    assert models.command_time(time(0, 0)) == "00:00"
+
+
+def test_unreported_rs485_flag_is_unknown_not_a_dead_controller():
+    """A spa that never reports the flag must keep its clock entity."""
+    assert _with_components(hour=14, minute=5).rs485_active is None
+
+
+def test_rs485_inactive_is_reported_as_false():
+    """An explicit False is what makes the clock unreachable."""
+    state = _with_components(hour=14, minute=5, rs485ConnectionActive=False)
+
+    assert state.rs485_active is False

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,7 +20,7 @@ from .api import (
     ControlMySpaError,
 )
 from .const import COMMAND_REFRESH_DELAY, DOMAIN
-from .models import Component, SpaState, command_temperature
+from .models import Component, SpaState, command_temperature, command_time
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,6 +161,21 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             self.client.async_set_temperature_range(self.data.spa_id, temp_range)
         )
         self.async_set_updated_data(self.data.with_temp_range(temp_range))
+        self._schedule_confirmation()
+
+    async def async_set_spa_time(self, value: time) -> None:
+        """Set the spa's own clock and show the new reading at once.
+
+        The 12/24-hour display setting travels with every call, so the spa's
+        current one is sent back unchanged rather than altered as a side effect
+        of setting the time.
+        """
+        spa = self.data
+        military = True if spa.spa_military is None else spa.spa_military
+        await self._async_send(
+            self.client.async_set_spa_time(spa.spa_id, command_time(value), military)
+        )
+        self.async_set_updated_data(spa.with_spa_time(value))
         self._schedule_confirmation()
 
     async def _async_send(self, command: Awaitable[None]) -> None:

@@ -385,6 +385,23 @@ async def test_temperature_range_command_sends_range():
     assert kwargs["json"] == {"spaId": "spa-1", "via": "WEB", "range": "LOW"}
 
 
+async def test_spa_time_command_sends_hh_mm_and_the_display_format():
+    """The clock command carries the 12/24-hour setting alongside the time."""
+    session = FakeSession(post_responses=[login_response(), command_response()])
+    client = ControlMySpaClient(session, "user@example.com", "secret")
+
+    await client.async_set_spa_time("spa-1", "19:45", True)
+
+    url, kwargs = session.post_calls[1]
+    assert url.endswith("/web/spa-commands/time")
+    assert kwargs["json"] == {
+        "spaId": "spa-1",
+        "via": "WEB",
+        "time": "19:45",
+        "isMilitaryFormat": True,
+    }
+
+
 async def test_service_refusal_raises_command_error_with_its_message():
     """Observed live: a 503 carrying a Redis out-of-memory refusal."""
     session = FakeSession(

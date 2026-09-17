@@ -16,6 +16,8 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --temp-c 38.0
     python scripts/verify_controls.py --email you@example.com --panel-lock lock
     python scripts/verify_controls.py --email you@example.com --temp-range low
+    python scripts/verify_controls.py --email you@example.com --time 14:30
+    python scripts/verify_controls.py --email you@example.com --time now
 
 Without --light, --blower, --heat-mode, --temp, --temp-c, --panel-lock or
 --temp-range nothing is sent. --temp is in the unit the spa reports; --temp-c is
@@ -33,6 +35,7 @@ import os
 import sys
 import types
 from datetime import datetime, timezone
+from datetime import time as dtime
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent.parent / "custom_components" / "controlmyspa"
@@ -106,6 +109,45 @@ def show(spa: dict, current: dict, state) -> None:
     print(f"current-state tempLock    = {current.get('tempLock')!r}")
     print(f"panel lock reads {state.panel_lock}, temperature lock reads {state.temp_lock}")
 
+    print("\n=== clock ===")
+    for label, record in (("/web/spas", web), ("current-state", current)):
+        print(f"{label:<13} hour={record.get('hour')!r} minute={record.get('minute')!r} "
+              f"military={record.get('military')!r} "
+              f"rs485={record.get('rs485ConnectionActive')!r}")
+    reading = state.spa_time
+    print(f"spa clock reads {reading.strftime('%H:%M') if reading else None}, "
+          f"24-hour display={state.spa_military}, rs485 active={state.rs485_active}")
+    if reading is not None:
+        now = datetime.now()  # noqa: DTZ005 - the spa keeps local time
+        drift = (now.hour * 60 + now.minute) - (reading.hour * 60 + reading.minute)
+        drift = (drift + 720) % 1440 - 720
+        print(f"this Mac reads {now.strftime('%H:%M')}; the spa is {drift:+d} min from it")
+
+    # Read straight from the raw record: the filter schedule fields are not on
+    # Component, and parsing them lives on the parked filter-schedule branch.
+    filters = [c for c in current.get("components") or []
+               if isinstance(c, dict) and c.get("componentType") == "FILTER"]
+    if filters:
+        print("\n=== filter cycles ===")
+        # The spa schedules by its own clock, so judge "running" against that.
+        reference = state.spa_time or datetime.now().time()  # noqa: DTZ005
+        clock = reference.hour * 60 + reference.minute
+        for entry in sorted(filters, key=lambda c: int(c.get("port") or 0)):
+            line = (f"port {entry.get('port')}  value={entry.get('value')!r}  "
+                    f"hour={entry.get('hour')!r} minute={entry.get('minute')!r} "
+                    f"durationMinutes={entry.get('durationMinutes')!r}")
+            try:
+                start = int(entry["hour"]) * 60 + int(entry["minute"])
+                end = start + int(entry["durationMinutes"])
+            except (KeyError, TypeError, ValueError):
+                print(line)
+                continue
+            running = start <= clock < end or start <= clock + 1440 < end
+            print(f"{line}\n{'':<10}-> {start // 60:02d}:{start % 60:02d}"
+                  f"-{(end // 60) % 24:02d}:{end % 60:02d} "
+                  f"({end - start} min), filtering now={running} "
+                  f"at spa time {reference.strftime('%H:%M')}")
+
     print("\n=== components ===")
     if state.components is None:
         print("current-state unreadable -- light and blower would be unavailable")
@@ -145,6 +187,8 @@ async def main() -> int:
     group.add_argument("--temp-c", type=float, metavar="CELSIUS")
     group.add_argument("--panel-lock", choices=("lock", "unlock"))
     group.add_argument("--temp-range", choices=("high", "low"))
+    group.add_argument("--time", metavar="HH:MM",
+                       help="set the spa's own clock; 'now' uses this Mac's time")
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -244,9 +288,34 @@ async def main() -> int:
                       f"target={fresh.target_temp}", end="  ")
                 return models.settable_temp_range(fresh.temp_range) == args.temp_range
 
+        elif args.time:
+            if args.time == "now":
+                local = datetime.now()  # noqa: DTZ005 - spa clock is local
+                wanted = dtime(local.hour, local.minute)
+            else:
+                try:
+                    hour, _, minute = args.time.partition(":")
+                    wanted = dtime(int(hour), int(minute))
+                except ValueError:
+                    print(f"\n{args.time!r} is not HH:MM or 'now'.")
+                    return 1
+            if not state.rs485_active:
+                print("\nrs485ConnectionActive is False -- the portal would "
+                      "disable its Set time dialog. Sending anyway.")
+            value = models.command_time(wanted)
+            military = True if state.spa_military is None else state.spa_military
+            print(f"\nSending clock {state.spa_time} -> {value} via "
+                  f"async_set_spa_time(<spa>, {value!r}, {military!r})")
+            send = client.async_set_spa_time(spa_id, value, military)
+
+            def reached(fresh) -> bool:
+                print(f"hour={fresh.spa_hour} minute={fresh.spa_minute} "
+                      f"reads {fresh.spa_time}", end="  ")
+                return fresh.spa_time == wanted
+
         else:
             print("\nRead-only. Pass --light, --blower, --heat-mode, --temp, "
-                  "--panel-lock or --temp-range to send a command.")
+                  "--panel-lock, --temp-range or --time to send a command.")
             return 0
 
         try:
