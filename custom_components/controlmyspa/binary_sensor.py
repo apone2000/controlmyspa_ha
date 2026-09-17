@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import ControlMySpaConfigEntry
-from .entity import ControlMySpaEntity
+from .entity import ControlMySpaComponentEntity, ControlMySpaEntity
 from .models import SpaState
 
 
@@ -130,6 +130,13 @@ BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
 )
 
 
+CIRCULATION_PUMP = BinarySensorEntityDescription(
+    key="circulation_pump",
+    translation_key="circulation_pump",
+    device_class=BinarySensorDeviceClass.RUNNING,
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ControlMySpaConfigEntry,
@@ -139,11 +146,20 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     lighting_fitted = coordinator.data.light_present
 
-    async_add_entities(
+    entities: list[BinarySensorEntity] = [
         ControlMySpaBinarySensor(coordinator, description)
         for description in BINARY_SENSORS
         if lighting_fitted or not description.requires_lighting
-    )
+    ]
+    # Only for a spa that has one. It has no port and cannot be commanded.
+    circulation_pump = coordinator.data.component("CIRCULATION_PUMP", None)
+    if circulation_pump is not None:
+        entities.append(
+            ControlMySpaCirculationPump(
+                coordinator, CIRCULATION_PUMP, circulation_pump
+            )
+        )
+    async_add_entities(entities)
 
 
 class ControlMySpaBinarySensor(ControlMySpaEntity, BinarySensorEntity):
@@ -162,3 +178,18 @@ class ControlMySpaBinarySensor(ControlMySpaEntity, BinarySensorEntity):
         if self.entity_description.always_available:
             return self.coordinator.last_update_success
         return super().available
+
+
+class ControlMySpaCirculationPump(ControlMySpaComponentEntity, BinarySensorEntity):
+    """Whether the spa's circulation pump is running.
+
+    Read-only. The spa runs it on its own schedule and while heating, so a
+    switch would fight it. It is not the blower, and it is not a reliable sign
+    that a filter cycle is running -- it has been seen on and off outside one.
+    """
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True while the pump is running."""
+        component = self.component
+        return component.is_on if component is not None else None

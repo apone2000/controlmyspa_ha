@@ -80,6 +80,7 @@
       "soak_mode": { "name": "Soak mode" },
       "cleanup_cycle": { "name": "Cleanup cycle" },
       "priming_mode": { "name": "Priming mode" },
+      "circulation_pump": { "name": "Circulation pump" },
       "temp_lock": { "name": "Temperature lock" },
       "settings_lock": { "name": "Settings lock" },
       "maintenance_locked": { "name": "Maintenance lock" }

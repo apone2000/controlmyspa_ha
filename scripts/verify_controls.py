@@ -18,6 +18,8 @@ entities would show.
     python scripts/verify_controls.py --email you@example.com --temp-range low
     python scripts/verify_controls.py --email you@example.com --time 14:30
     python scripts/verify_controls.py --email you@example.com --time now
+    python scripts/verify_controls.py --email you@example.com --jet 1 on
+    python scripts/verify_controls.py --email you@example.com --jet 1 off
 
 Without --light, --blower, --heat-mode, --temp, --temp-c, --panel-lock or
 --temp-range nothing is sent. --temp is in the unit the spa reports; --temp-c is
@@ -189,6 +191,8 @@ async def main() -> int:
     group.add_argument("--temp-range", choices=("high", "low"))
     group.add_argument("--time", metavar="HH:MM",
                        help="set the spa's own clock; 'now' uses this Mac's time")
+    group.add_argument("--jet", nargs=2, metavar=("N", "STATE"),
+                       help="set jet N (1, 2, 3...) to on, off, low or high")
     args = parser.parse_args()
 
     password = os.environ.get("CONTROLMYSPA_PASSWORD") or getpass.getpass("Password: ")
@@ -288,6 +292,39 @@ async def main() -> int:
                       f"target={fresh.target_temp}", end="  ")
                 return models.settable_temp_range(fresh.temp_range) == args.temp_range
 
+        elif args.jet:
+            number, wanted = args.jet
+            try:
+                port = int(number) - 1
+            except ValueError:
+                print(f"\n{number!r} is not a jet number.")
+                return 1
+            component = state.component("PUMP", port)
+            if component is None:
+                found = [str((c.port or 0) + 1) for c in state.components_of("PUMP")]
+                print(f"\nNo jet {number} (PUMP port {port}). "
+                      f"This spa reports jets: {', '.join(found) or 'none'}")
+                return 1
+            wanted = wanted.upper()
+            if wanted == "ON":
+                wanted = component.on_value
+            if wanted not in component.available_values:
+                print(f"\n{wanted} is not one of "
+                      f"{', '.join(component.available_values)} for this jet.")
+                return 1
+            print(f"\nSending jet {number} (PUMP port {port}) {component.value} -> "
+                  f"{wanted} via async_set_component_state(<spa>, "
+                  f"{component.command_type!r}, {wanted!r}, "
+                  f"{component.device_number!r})")
+            send = client.async_set_component_state(
+                spa_id, component.command_type, wanted, component.device_number
+            )
+
+            def reached(fresh) -> bool:
+                match = fresh.component("PUMP", port)
+                print(f"value={match.value if match else None}", end="  ")
+                return match is not None and match.value == wanted
+
         elif args.time:
             if args.time == "now":
                 local = datetime.now()  # noqa: DTZ005 - spa clock is local
@@ -314,8 +351,9 @@ async def main() -> int:
                 return fresh.spa_time == wanted
 
         else:
-            print("\nRead-only. Pass --light, --blower, --heat-mode, --temp, "
-                  "--panel-lock, --temp-range or --time to send a command.")
+            print("\nRead-only. Pass --light, --blower, --jet, --heat-mode, "
+                  "--temp, --panel-lock, --temp-range or --time to send a "
+                  "command.")
             return 0
 
         try:

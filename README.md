@@ -181,6 +181,7 @@ them.
 | Entity | ID | Notes |
 |---|---|---|
 | Heating | `binary_sensor.spa_heating` | On while the heater is running |
+| Circulation pump | `binary_sensor.spa_circulation_pump` | Only if the spa reports one |
 | Temperature reached | `binary_sensor.spa_temperature_reached` | |
 | Eco mode | `binary_sensor.spa_eco_mode` | |
 | Soak mode | `binary_sensor.spa_soak_mode` | |
@@ -393,6 +394,9 @@ python scripts/verify_controls.py --email you@example.com --temp-c 38.5
 python scripts/verify_controls.py --email you@example.com --temp-range low
 ```
 
+`--jet N on|off` numbers the jets the way the entities do, so `--jet 1` is the
+spa's first pump. `low` and `high` work too, for a pump that offers them.
+
 `scripts/light_control.py` is a lower-level diagnostic that talks to the
 component endpoints directly. Its `--watch SECONDS` polls and reports every
 component change — the way to see whether, and how quickly, a change made at
@@ -461,6 +465,12 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Circulation pump sensor.** `binary_sensor.spa_circulation_pump` reports
+  whether the pump is running, for spas that have one. Read-only: the spa runs
+  it on its own schedule and while heating, so a switch would fight it.
 
 ### v0.2.6
 
