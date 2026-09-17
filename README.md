@@ -448,7 +448,7 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ## Changelog
 
-### Unreleased
+### v0.2.5
 
 - **Spa clock.** `time.spa_time` reads and sets the clock the spa keeps for
   itself, which is what schedules its filter cycles.
