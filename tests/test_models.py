@@ -667,7 +667,6 @@ def test_diagnostics_are_carried_through():
     assert state.controller_version == "M100_226 V65.0"
     assert state.wifi_health == "STRONG"
     assert state.temperature_reached is True
-    assert state.heating is False
 
 
 def test_empty_payload_does_not_raise():
@@ -771,3 +770,36 @@ def test_a_component_without_a_schedule_reports_none():
 
     assert light.start_time is None
     assert light.duration_minutes is None
+
+
+def test_a_heater_component_means_the_heater_is_running():
+    """The spa adds a HEATER component while the heater runs."""
+    state = _with_components([
+        {"componentType": "HEATER", "port": 0, "value": "ON"},
+        {"componentType": "LIGHT", "port": 0, "value": "OFF"},
+    ])
+
+    assert state.heating is True
+
+
+def test_no_heater_component_means_it_is_not_running():
+    """Absence is the off state: the spa drops the entry when heating stops."""
+    assert _with_components().heating is False
+
+
+def test_heater_cooling_does_not_decide_heating():
+    """It read False throughout a confirmed heat-up, so it must not be trusted.
+
+    A spa reporting components is judged only by whether HEATER is among them.
+    """
+    state = SpaState.from_api(
+        _spa(heaterCooling=True),
+        {"components": [{"componentType": "LIGHT", "port": 0, "value": "OFF"}]},
+    )
+
+    assert state.heating is False
+
+
+def test_heater_cooling_is_the_fallback_without_components():
+    """With current-state unreadable there is nothing better to go on."""
+    assert SpaState.from_api(_spa(heaterCooling=True)).heating is True

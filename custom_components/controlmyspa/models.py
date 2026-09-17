@@ -574,6 +574,10 @@ class SpaState:
         uplink_timestamp = _as_datetime(current.get("uplinkTimestamp"))
 
         components: tuple[Component, ...] | None = None
+        # A last resort only. currentState.heaterCooling read False throughout a
+        # confirmed heat-up on 2026-09-17, so it does not track the heater; it is
+        # used solely when current-state could not be read at all.
+        heating = bool(current.get("heaterCooling"))
         heater_mode = current.get("heaterMode")
         target_temp = _as_float(current.get("desiredTemp"))
         panel_lock = bool(current.get("panelLock"))
@@ -591,6 +595,12 @@ class SpaState:
                 if isinstance(raw, dict)
             )
             components = tuple(c for c in parsed if c is not None)
+            # The spa adds a HEATER component while the heater runs and drops it
+            # again afterwards, so absence is the off state, not missing data.
+            heater = next(
+                (c for c in components if c.component_type == "HEATER"), None
+            )
+            heating = heater is not None and heater.is_on
             # The portal's heat mode and temperature controls read current-state,
             # so prefer it for the values those controls change.
             heater_mode = current_state.get("heaterMode") or heater_mode
@@ -623,7 +633,7 @@ class SpaState:
             high_limit_temp=_as_float_reported(current.get("hiLimitTemp")),
             fahrenheit=fahrenheit,
             heater_mode=heater_mode,
-            heating=bool(current.get("heaterCooling")),
+            heating=heating,
             temp_range=temp_range,
             run_mode=current.get("runMode"),
             temperature_reached=bool(current.get("temperatureReached")),

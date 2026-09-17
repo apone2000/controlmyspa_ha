@@ -459,6 +459,10 @@ the portal's own JavaScript; each will be verified against a real spa with
   service's own success flag alongside its message, because ControlMySpa has
   been seen refusing a command with text that says it worked. A reply whose
   `data` is not an object no longer breaks the check.
+- **Heating now reports the real heater.** It read `currentState.heaterCooling`,
+  which stays false throughout a confirmed heat-up, so the sensor never came on.
+  The spa adds a `HEATER` component while the heater runs and drops it again
+  afterwards, and that is what the sensor now follows.
 - **Heating now reads On / Off.** It was declared with the `heat` device
   class, so Home Assistant rendered it as Hot / Normal, which reads as a
   temperature warning rather than whether the heater is running. Display only:
