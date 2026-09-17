@@ -161,6 +161,7 @@ them.
 | Target temperature | `sensor.spa_target_temperature` | |
 | Heater mode | `sensor.spa_heater_mode` | Ready, Rest or Ready-in-Rest |
 | Run mode | `sensor.spa_run_mode` | |
+| Clock | `sensor.spa_clock` | The spa's own time, `HH:MM`, read-only |
 | Ambient temperature | `sensor.spa_ambient_temperature` | Diagnostic |
 | High limit temperature | `sensor.spa_high_limit_temperature` | Diagnostic, disabled |
 | Error code | `sensor.spa_error_code` | Diagnostic |
@@ -242,6 +243,10 @@ service's own message and the state is left as it was.
 for the next poll. It can only fetch what the cloud already has: the spa itself
 reports every two to three minutes, so pressing it more often than that mostly
 returns the same data. If the read fails, Home Assistant shows why.
+
+**Clock** (`sensor.spa_clock`) is the same reading as **Time** below, without
+the control — a plain read-only value for dashboards and automations. It is
+`HH:MM` text rather than a timestamp, because the spa reports no date.
 
 **Time** (`time.spa_time`) is the clock the spa keeps for itself, and it is what
 decides when the filter cycles run — so a spa an hour out filters an hour late.
@@ -447,6 +452,11 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Clock sensor.** `sensor.spa_clock` reports the spa's own time read-only, for
+  dashboards and automations that only need the value, not the control.
 
 ### v0.2.5
 

@@ -57,6 +57,16 @@ SENSORS: tuple[ControlMySpaSensorDescription, ...] = (
         value_fn=lambda spa: spa.current_temp_raw,
     ),
     ControlMySpaSensorDescription(
+        key="spa_clock",
+        translation_key="spa_clock",
+        # The same reading as time.spa_time, without the control. The spa keeps
+        # no seconds and no date, so this is HH:MM text rather than a timestamp:
+        # a timestamp would need a date invented for it.
+        value_fn=lambda spa: (
+            None if spa.spa_time is None else spa.spa_time.strftime("%H:%M")
+        ),
+    ),
+    ControlMySpaSensorDescription(
         key="target_temp",
         translation_key="target_temp",
         device_class=SensorDeviceClass.TEMPERATURE,

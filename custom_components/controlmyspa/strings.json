@@ -57,6 +57,7 @@
         }
       },
       "run_mode": { "name": "Run mode" },
+      "spa_clock": { "name": "Clock" },
       "error_code": { "name": "Error code" },
       "wifi_health": { "name": "Wi-Fi health" },
       "last_uplink": { "name": "Last uplink" },
