@@ -453,7 +453,7 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ## Changelog
 
-### Unreleased
+### v0.2.6
 
 - **Ending Ready-in-Rest, properly this time.** v0.2.5 toggled through Ready to
   end it, on the assumption that asking for Rest was refused. Testing against a
