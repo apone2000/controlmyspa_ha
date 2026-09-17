@@ -272,10 +272,20 @@ class ControlMySpaClient:
             "POST", f"{ENDPOINT_COMMANDS}/{path}", payload=payload
         )
         envelope = body if isinstance(body, dict) else {}
-        success = (envelope.get("data") or {}).get("success")
+        data = envelope.get("data")
+        success = data.get("success") if isinstance(data, dict) else None
         if status < 300 and success is not False:
             return
-        raise ControlMySpaCommandError(envelope.get("message") or f"HTTP {status}")
+        # Keep the status and the flag in the message. The service has been
+        # seen refusing with text that says the command worked, and a bare
+        # message gives no way to tell which half is lying.
+        _LOGGER.debug(
+            "Command %s refused: status=%s body=%r", path, status, body
+        )
+        detail = envelope.get("message") or "no message"
+        raise ControlMySpaCommandError(
+            f"{detail} (HTTP {status}, success={success!r})"
+        )
 
     async def async_get_spa(self) -> dict[str, Any]:
         """Return the raw record for the account's active spa.

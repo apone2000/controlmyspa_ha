@@ -420,6 +420,33 @@ async def test_service_refusal_raises_command_error_with_its_message():
         await client.async_set_component_state("spa-1", "light", "OFF", 0)
 
 
+async def test_a_non_dict_data_field_is_not_a_refusal():
+    """Some responses put a string in data; that must not crash the check."""
+    session = FakeSession(
+        post_responses=[
+            login_response(),
+            FakeResponse(200, {"data": "Heater mode toggled successfully"}),
+        ]
+    )
+    client = ControlMySpaClient(session, "user@example.com", "secret")
+
+    await client.async_set_heater_mode("spa-1", "READY")
+
+
+async def test_refusal_message_carries_the_status_and_flag():
+    """A message that claims success needs the status to be diagnosable."""
+    session = FakeSession(
+        post_responses=[
+            login_response(),
+            command_response(500, success=False, message="Heater mode toggled successfully"),
+        ]
+    )
+    client = ControlMySpaClient(session, "user@example.com", "secret")
+
+    with pytest.raises(api.ControlMySpaCommandError, match=r"HTTP 500, success=False"):
+        await client.async_set_heater_mode("spa-1", "READY")
+
+
 async def test_success_false_is_a_refusal_even_with_200():
     """The envelope's own verdict outranks the status code."""
     session = FakeSession(
