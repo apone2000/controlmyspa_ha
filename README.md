@@ -148,6 +148,8 @@ them.
 | Light | `light.spa_light` | On / off; only if the spa reports a light |
 | Blower | `switch.spa_blower` | On / off; only if the spa reports a blower |
 | Panel lock | `lock.spa_panel_lock` | Locks the spa's own buttons |
+| Time | `time.spa_time` | The spa's own clock, which schedules filtering |
+| Sync time | `button.spa_sync_time` | Sets the clock from Home Assistant |
 | Refresh | `button.spa_refresh` | Re-reads the spa now |
 
 **Sensors**
@@ -236,6 +238,32 @@ service's own message and the state is left as it was.
 for the next poll. It can only fetch what the cloud already has: the spa itself
 reports every two to three minutes, so pressing it more often than that mostly
 returns the same data. If the read fails, Home Assistant shows why.
+
+**Time** (`time.spa_time`) is the clock the spa keeps for itself, and it is what
+decides when the filter cycles run — so a spa an hour out filters an hour late.
+Setting it does not change whether the spa displays 12- or 24-hour time; that
+setting is sent back unchanged.
+
+**Sync time** (`button.spa_sync_time`) sets the clock from Home Assistant's own
+local time. The spa keeps no seconds and no date, so its clock drifts and a
+daylight saving change leaves it an hour out until it is set again. An
+automation pressing this daily keeps it right:
+
+```yaml
+automation:
+  - alias: Keep the spa clock right
+    triggers:
+      - trigger: time
+        at: "03:30:00"
+    actions:
+      - action: button.press
+        target:
+          entity_id: button.spa_sync_time
+```
+
+Both are unavailable while the spa reports that its controller link (RS485) is
+down, because the controller is what keeps the time — the ControlMySpa portal
+disables its own dialog for the same reason.
 
 ### Temperature units
 
@@ -402,6 +430,14 @@ the portal's own JavaScript; each will be verified against a real spa with
   until the pump next runs.
 
 ## Changelog
+
+### Unreleased
+
+- **Spa clock.** `time.spa_time` reads and sets the clock the spa keeps for
+  itself, which is what schedules its filter cycles.
+- **Sync time button.** `button.spa_sync_time` sets that clock from Home
+  Assistant's local time, for correcting drift and daylight saving. Both
+  entities are unavailable while the spa reports its controller link is down.
 
 ### v0.2.4
 

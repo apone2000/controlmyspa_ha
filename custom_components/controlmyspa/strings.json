@@ -102,6 +102,9 @@
       "blower_numbered": { "name": "Blower {number}" },
       "ready_mode": { "name": "Ready mode" }
     },
+    "time": {
+      "spa_time": { "name": "Time" }
+    },
     "select": {
       "heat_mode": {
         "name": "Heat mode",
@@ -119,7 +122,8 @@
       }
     },
     "button": {
-      "refresh": { "name": "Refresh" }
+      "refresh": { "name": "Refresh" },
+      "sync_time": { "name": "Sync time" }
     },
     "lock": {
       "panel_lock": { "name": "Panel lock" }
