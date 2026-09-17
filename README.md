@@ -203,6 +203,15 @@ has no off mode — the heater cannot be switched off through the API, only move
 to Rest. Ready and Rest are its presets, so the thermostat row reads e.g.
 "Idle (Heat - Rest)" and the thermostat card can switch between them.
 
+**Why the card shows a Mode with only "Heat" in it.** Home Assistant requires
+every thermostat to declare its modes, and this spa has exactly one: it heats,
+and it cannot be turned off. So that control is there because the platform
+demands it, it offers nothing to choose, and selecting Heat does nothing. Ready
+and Rest are the real choice, and they are the presets beside it. If the empty
+Mode row bothers you, a tile card lets you show the target temperature and
+presets without it; the same choice is also on `select.spa_heat_mode` and
+`switch.spa_ready_mode`.
+
 The API works in Fahrenheit. In a Celsius Home Assistant the thermostat and
 temperature sensors show values the way the portal and the spa's panel do —
 converted and rounded to the nearest half degree, so 100 °F reads 37.5 °C
