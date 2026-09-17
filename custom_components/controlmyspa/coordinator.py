@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Awaitable
 from dataclasses import replace
@@ -20,7 +19,7 @@ from .api import (
     ControlMySpaClient,
     ControlMySpaError,
 )
-from .const import COMMAND_REFRESH_DELAY, DOMAIN, HEATER_MODE_TOGGLE_DELAY
+from .const import COMMAND_REFRESH_DELAY, DOMAIN, HEATER_MODE_SETTLE_DELAY
 from .models import Component, SpaState, command_temperature, command_time
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,29 +145,21 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
         ``success: false`` and the message "Heater mode toggled successfully".
         Nothing needs doing in that case, so nothing is sent.
 
-        Ready-in-Rest is Rest that the jets pushed into heating for an hour. The
-        service already counts it as Rest, so asking for Rest to end it early is
-        refused the same way. Toggling to Ready and straight back is what clears
-        it -- the same thing an owner does by hand in the ControlMySpa app.
+        Ending Ready-in-Rest is accepted like any other change, but the spa
+        carries it out as a toggle: it passes through Ready and only settles in
+        Rest about 35 seconds later. Confirming at the usual five would read
+        that Ready and show it until the next poll, so every mode change is
+        given the longer wait.
         """
         wanted = mode.upper()
-        current = (self.data.heater_mode or "").upper()
-        if current == wanted:
+        if (self.data.heater_mode or "").upper() == wanted:
             return
 
-        spa_id = self.data.spa_id
-        if wanted == "REST" and current == "READY_REST":
-            await self._async_send(
-                self.client.async_set_heater_mode(spa_id, "READY")
-            )
-            # Leaving the spa in Ready would be worse than leaving it in
-            # Ready-in-Rest, so the second half must still be attempted even if
-            # the wait is interrupted.
-            await asyncio.sleep(HEATER_MODE_TOGGLE_DELAY)
-
-        await self._async_send(self.client.async_set_heater_mode(spa_id, wanted))
+        await self._async_send(
+            self.client.async_set_heater_mode(self.data.spa_id, wanted)
+        )
         self.async_set_updated_data(replace(self.data, heater_mode=wanted))
-        self._schedule_confirmation()
+        self._schedule_confirmation(HEATER_MODE_SETTLE_DELAY)
 
     async def async_set_panel_lock(self, locked: bool) -> None:
         """Lock or unlock the spa's control panel and show it straight away."""
@@ -213,12 +204,16 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             ) from err
 
     @callback
-    def _schedule_confirmation(self) -> None:
-        """Re-read shortly after a command to confirm or correct what we showed."""
+    def _schedule_confirmation(self, delay: int = COMMAND_REFRESH_DELAY) -> None:
+        """Re-read shortly after a command to confirm or correct what we showed.
+
+        ``delay`` is longer for commands the spa takes its time over, so the
+        re-read does not catch a state it is only passing through.
+        """
         if self._unsub_confirmation is not None:
             self._unsub_confirmation()
         self._unsub_confirmation = async_call_later(
-            self.hass, COMMAND_REFRESH_DELAY, self._async_confirm
+            self.hass, delay, self._async_confirm
         )
 
     async def _async_confirm(self, _now: datetime) -> None:

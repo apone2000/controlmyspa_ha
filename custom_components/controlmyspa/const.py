@@ -21,11 +21,11 @@ ENDPOINT_COMMANDS: Final = f"{API_ROOT}/spa-commands"
 # service accepts are MOBILE, GATEWAY, SCHEDULED and ALEXA.
 COMMAND_VIA: Final = "WEB"
 
-# Ready-in-Rest already reads as Rest to the service, so asking for Rest is
-# refused as a no-op. Toggling to Ready and straight back clears it. This is how
-# long to wait between the two halves; the service reflects a command in about
-# three seconds, but the pair only has to arrive in order.
-HEATER_MODE_TOGGLE_DELAY: Final = 1
+# Leaving Ready-in-Rest takes far longer than an ordinary command. Asking for
+# Rest is accepted, but the spa passes through Ready and only settles in Rest
+# about 35 seconds later, so confirming at the usual five would read the Ready
+# it is passing through and show that until the next poll.
+HEATER_MODE_SETTLE_DELAY: Final = 45
 
 # How long to wait after an accepted command before re-reading state. The
 # service reflected commands within three seconds when tested, so reading back

@@ -455,6 +455,13 @@ the portal's own JavaScript; each will be verified against a real spa with
 
 ### Unreleased
 
+- **Ending Ready-in-Rest, properly this time.** v0.2.5 toggled through Ready to
+  end it, on the assumption that asking for Rest was refused. Testing against a
+  spa actually in Ready-in-Rest showed it is accepted -- the spa performs that
+  toggle itself, passing through Ready and settling in Rest about 35 seconds
+  later. The client-side toggle is gone. A heat mode change is now confirmed
+  after 45 seconds rather than 5, so the re-read no longer catches the Ready the
+  spa is passing through and leaves it showing until the next poll.
 - **Clock sensor.** `sensor.spa_clock` reports the spa's own time read-only, for
   dashboards and automations that only need the value, not the control.
 
