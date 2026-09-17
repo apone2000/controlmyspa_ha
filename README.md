@@ -179,7 +179,7 @@ them.
 
 | Entity | ID | Notes |
 |---|---|---|
-| Heating | `binary_sensor.spa_heating` | |
+| Heating | `binary_sensor.spa_heating` | On while the heater is running |
 | Temperature reached | `binary_sensor.spa_temperature_reached` | |
 | Eco mode | `binary_sensor.spa_eco_mode` | |
 | Soak mode | `binary_sensor.spa_soak_mode` | |
@@ -455,6 +455,10 @@ the portal's own JavaScript; each will be verified against a real spa with
 - **Sync time button.** `button.spa_sync_time` sets that clock from Home
   Assistant's local time, for correcting drift and daylight saving. Both
   entities are unavailable while the spa reports its controller link is down.
+- **Heating now reads On / Off.** It was declared with the `heat` device
+  class, so Home Assistant rendered it as Hot / Normal, which reads as a
+  temperature warning rather than whether the heater is running. Display only:
+  the state is unchanged, so existing automations keep working.
 - **Filter cycle schedules.** `sensor.spa_filter_N_start_time` and
   `sensor.spa_filter_N_duration` report when each cycle starts and how long it
   runs, with the cycle's own `ON` / `OFF` / `DISABLED` state as a `status`

@@ -28,6 +28,14 @@
       "filter_duration": {
         "default": "mdi:timer-sand"
       }
+    },
+    "binary_sensor": {
+      "heating": {
+        "default": "mdi:radiator-off",
+        "state": {
+          "on": "mdi:radiator"
+        }
+      }
     }
   }
 }

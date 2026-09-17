@@ -59,7 +59,10 @@ BINARY_SENSORS: tuple[ControlMySpaBinarySensorDescription, ...] = (
     ControlMySpaBinarySensorDescription(
         key="heating",
         translation_key="heating",
-        device_class=BinarySensorDeviceClass.HEAT,
+        # No device class on purpose. BinarySensorDeviceClass.HEAT renders as
+        # Hot/Normal, which reads as a temperature warning rather than whether
+        # the heater is running; plain on/off is what this actually reports.
+        # The state itself is unchanged, so automations are unaffected.
         value_fn=lambda spa: spa.heating,
     ),
     ControlMySpaBinarySensorDescription(
