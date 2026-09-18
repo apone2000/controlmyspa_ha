@@ -9,9 +9,9 @@ it works on every Home Assistant install type (OS, Container, Supervised, Core)
 and declares no extra Python dependencies.
 
 > **Status: early control.** Spa state is published into Home Assistant, and the
-> target temperature, temperature range, heat mode, light, blower and panel lock
-> can be controlled. Jets, the spa clock and filter cycles are not implemented
-> yet — see [Roadmap](#roadmap).
+> target temperature, temperature range, heat mode, light, blower, jets, panel
+> lock and spa clock can be controlled. Filter cycle schedules are reported but
+> cannot be changed — see [Roadmap](#roadmap).
 
 ## Requirements
 
@@ -447,31 +447,20 @@ array lists every controllable device — lights, pumps, blower, circulation
 pump, filters — with its current value and the values it accepts. It reflected
 an accepted command within three seconds when tested.
 
-Everything else the portal can do is listed under [Roadmap](#roadmap).
+Filter cycle schedules are the exception; see [Roadmap](#roadmap).
 
 ## Roadmap
 
-Planned, not yet released. Command formats for all of these were recovered from
-the portal's own JavaScript; each will be verified against a real spa with
-`scripts/verify_controls.py` before release, as the current controls were.
+Planned, not yet released:
 
-- **Spa clock** — show the spa's current time, set it, and a **Sync time**
-  button that sets it to Home Assistant's local time in one tap, keeping the
-  spa's 12/24-hour setting. The spa keeps no seconds and does not adjust for
-  daylight saving, so a daily automation pressing Sync is worthwhile.
-  (`POST /web/spa-commands/time` with `time` as `"HH:MM"` and
-  `isMilitaryFormat`.)
-- **Jets** — control each pump at its two speeds, Low and High.
-  (`component-state` with `jet` and the pump's port.)
-- **Filter cycles 1 and 2** — each cycle's start time and duration, and turning
-  filter cycle 2 on or off (filter 1 always runs). The schedule controls are
-  built, but on the test spa a schedule change was accepted and never took
-  effect, not even when made in the ControlMySpa portal itself, so they are
-  held back while that is investigated. (`filter-cycles/schedule` with `time` as
-  `"HH:MM"` and `numOfIntervals` in 15-minute blocks;
-  `filter-cycles/toggle-filter2-state`.)
 - **Keep the held water temperature across a restart**, so it is not unknown
   until the pump next runs.
+
+**Filter cycle schedules stay read-only.** ControlMySpa accepts a schedule
+change and then does not apply it, or applies a different one, even when the
+change is made in the ControlMySpa portal itself. Enabling filter cycle 2 there
+has also been seen to reset filter cycle 1's schedule. Change them on the spa's
+panel instead.
 
 ## Changelog
 
