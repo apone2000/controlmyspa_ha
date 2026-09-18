@@ -463,7 +463,7 @@ panel instead.
 
 ## Changelog
 
-### Unreleased
+### v0.2.7
 
 - **Jet switches.** One per pump the spa reports, `switch.spa_jet_1` and so
   on, so a jet your tub does not actually have can simply be disabled. A pump
