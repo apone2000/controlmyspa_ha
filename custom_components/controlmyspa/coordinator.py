@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -20,11 +21,26 @@ from .api import (
     ControlMySpaError,
 )
 from .const import COMMAND_REFRESH_DELAY, DOMAIN, HEATER_MODE_SETTLE_DELAY
-from .models import Component, SpaState, command_temperature, command_time
+from .models import (
+    Component,
+    SpaState,
+    WaterReading,
+    command_temperature,
+    command_time,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 ControlMySpaConfigEntry = ConfigEntry["ControlMySpaCoordinator"]
+
+WATER_READING_STORAGE_VERSION = 1
+
+
+def water_reading_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
+    """Return the store that keeps a spa's water temperature across restarts."""
+    return Store(
+        hass, WATER_READING_STORAGE_VERSION, f"{DOMAIN}.{entry_id}.water_temperature"
+    )
 
 
 class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
@@ -49,6 +65,18 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
         )
         self.client = client
         self._unsub_confirmation: CALLBACK_TYPE | None = None
+        self._water_store = water_reading_store(hass, config_entry.entry_id)
+        self._water_reading: WaterReading | None = None
+
+    async def _async_setup(self) -> None:
+        """Load the water temperature saved before the last restart.
+
+        The spa has no water reading until its pump runs, which can be hours
+        away, so without this the temperature is unknown after every restart.
+        """
+        self._water_reading = WaterReading.from_dict(
+            await self._water_store.async_load()
+        )
 
     async def _async_update_data(self) -> SpaState:
         """Retrieve a fresh snapshot of spa state.
@@ -65,9 +93,23 @@ class ControlMySpaCoordinator(DataUpdateCoordinator[SpaState]):
             raise UpdateFailed(str(err)) from err
 
         current_state = await self._async_get_current_state(str(spa.get("_id") or ""))
-        return SpaState.from_api(spa, current_state).holding_water_temperature_from(
-            self.data
+        state = SpaState.from_api(spa, current_state).holding_water_temperature_from(
+            self._water_reading
         )
+        await self._async_keep_water_reading(state.water_reading)
+        return state
+
+    async def _async_keep_water_reading(self, reading: WaterReading | None) -> None:
+        """Remember the latest water reading, saving it when it has changed.
+
+        A poll that could not hold the reading over leaves the last one in
+        place rather than forgetting it. The file is only written when a new
+        measurement arrives, not on every poll that holds the old one.
+        """
+        if reading is None or reading == self._water_reading:
+            return
+        self._water_reading = reading
+        await self._water_store.async_save(reading.as_dict())
 
     async def _async_get_current_state(self, spa_id: str) -> dict[str, Any] | None:
         """Read component state, tolerating a failure after setup.

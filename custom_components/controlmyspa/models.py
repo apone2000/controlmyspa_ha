@@ -374,6 +374,46 @@ class Component:
         return self.port or 0
 
 
+@dataclass(frozen=True)
+class WaterReading:
+    """The last good water temperature, held over polls and saved across restarts.
+
+    ``temperature`` is in the API's own unit, and ``fahrenheit`` records which
+    that was, so a saved reading is never shown in the wrong one.
+    """
+
+    temperature: float
+    measured_at: datetime | None
+    fahrenheit: bool
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the reading in a form Home Assistant's storage can save."""
+        return {
+            "temperature": self.temperature,
+            "measured_at": (
+                None if self.measured_at is None else self.measured_at.isoformat()
+            ),
+            "fahrenheit": self.fahrenheit,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> WaterReading | None:
+        """Rebuild a saved reading, or return None if it cannot be used.
+
+        The temperature is checked against the same no-reading window as a
+        live one, so nothing saved can show a value the spa would not.
+        """
+        if not isinstance(data, dict):
+            return None
+        fahrenheit = data.get("fahrenheit")
+        if not isinstance(fahrenheit, bool):
+            return None
+        temperature = _as_water_temp(data.get("temperature"), fahrenheit)
+        if temperature is None:
+            return None
+        return cls(temperature, _as_datetime(data.get("measured_at")), fahrenheit)
+
+
 @dataclass
 class SpaState:
     """A single snapshot of spa state, already coerced to usable types."""
@@ -451,24 +491,36 @@ class SpaState:
 
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
-    def holding_water_temperature_from(self, previous: SpaState | None) -> SpaState:
+    @property
+    def water_reading(self) -> WaterReading | None:
+        """Return the water temperature this snapshot shows, fresh or held."""
+        if self.current_temp is None:
+            return None
+        return WaterReading(self.current_temp, self.current_temp_at, self.fahrenheit)
+
+    def holding_water_temperature_from(self, previous: WaterReading | None) -> SpaState:
         """Return this snapshot with the last good water temperature held over.
 
         Without a pump run the spa has no water reading at all, sometimes for
         hours. Holding the previous one keeps graphs continuous, and
         ``current_temp_held`` says the value is not a fresh measurement.
+
+        ``previous`` comes from an earlier poll or, after a restart, from
+        storage. One in the other unit is dropped rather than converted: a
+        spa's unit does not change in use, so a mismatch means the saved
+        reading cannot be trusted.
         """
         if (
             self.current_temp is not None
             or previous is None
-            or previous.current_temp is None
+            or previous.fahrenheit != self.fahrenheit
         ):
             return self
         return replace(
             self,
-            current_temp=previous.current_temp,
+            current_temp=previous.temperature,
             current_temp_held=True,
-            current_temp_at=previous.current_temp_at,
+            current_temp_at=previous.measured_at,
         )
 
     @property

@@ -352,8 +352,10 @@ the last good reading is **held** until the pump runs again:
   is. Graph the ordinary water temperature; use this one to see what the spa
   really reported.
 
-After a Home Assistant restart there is nothing to hold, so the temperature is
-*Unknown* until the spa next measures it.
+The held reading is saved, so it carries over a Home Assistant restart too,
+with **Water temperature held** on and `measured_at` still saying when it was
+taken. It is only *Unknown* after a restart if the spa has not measured the
+water since this was installed.
 
 ### Availability
 
@@ -451,10 +453,7 @@ Filter cycle schedules are the exception; see [Roadmap](#roadmap).
 
 ## Roadmap
 
-Planned, not yet released:
-
-- **Keep the held water temperature across a restart**, so it is not unknown
-  until the pump next runs.
+Nothing else is planned at the moment.
 
 **Filter cycle schedules stay read-only.** ControlMySpa accepts a schedule
 change and then does not apply it, or applies a different one, even when the
@@ -471,6 +470,12 @@ panel instead.
   is started at its lowest setting: a stopped pump asked for its highest stays
   stopped, silently, while the same pump asked for its lowest starts — and then
   reports the highest anyway.
+- **The water temperature survives a restart.** The last good reading is
+  saved, so after Home Assistant restarts it is held, with **Water temperature
+  held** on and `measured_at` unchanged, instead of showing *Unknown* until the
+  pump next runs. It is deleted along with the integration. The restart that
+  installs this update still starts from *Unknown*, since nothing was saved
+  before it.
 - **Circulation pump sensor.** `binary_sensor.spa_circulation_pump` reports
   whether the pump is running, for spas that have one. Read-only: the spa runs
   it on its own schedule and while heating, so a switch would fight it.

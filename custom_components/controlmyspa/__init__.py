@@ -8,7 +8,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import ControlMySpaClient
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-from .coordinator import ControlMySpaConfigEntry, ControlMySpaCoordinator
+from .coordinator import (
+    ControlMySpaConfigEntry,
+    ControlMySpaCoordinator,
+    water_reading_store,
+)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -48,6 +52,13 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: ControlMySpaConfigEntry
+) -> None:
+    """Delete the saved water temperature along with the spa."""
+    await water_reading_store(hass, entry.entry_id).async_remove()
 
 
 async def async_reload_entry(

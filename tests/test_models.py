@@ -12,6 +12,7 @@ from datetime import datetime, time, timedelta, timezone
 from conftest import models
 
 SpaState = models.SpaState
+WaterReading = models.WaterReading
 
 
 def _spa(tzl_state=None, **current_overrides):
@@ -132,7 +133,7 @@ def test_raw_water_temperature_keeps_what_the_api_sent():
     assert SpaState.from_api(_spa(currentTemp="96.00")).current_temp_raw == 96.0
     assert SpaState.from_api(_spa(currentTemp="")).current_temp_raw is None
     held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
-        SpaState.from_api(_spa(currentTemp="96.00"))
+        SpaState.from_api(_spa(currentTemp="96.00")).water_reading
     )
     assert (held.current_temp, held.current_temp_raw) == (96.0, 262.0)
 
@@ -154,10 +155,10 @@ def test_last_good_reading_is_held_while_the_spa_has_none():
     )
 
     held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
-        previous
+        previous.water_reading
     )
     still_held = SpaState.from_api(_spa(currentTemp="")).holding_water_temperature_from(
-        held
+        held.water_reading
     )
 
     assert (held.current_temp, held.current_temp_held) == (96.0, True)
@@ -169,25 +170,83 @@ def test_last_good_reading_is_held_while_the_spa_has_none():
 def test_a_fresh_reading_ends_the_hold():
     """Once the pump runs, the real value replaces the held one."""
     previous = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
-        SpaState.from_api(_spa(currentTemp="96.00"))
+        SpaState.from_api(_spa(currentTemp="96.00")).water_reading
     )
 
     fresh = SpaState.from_api(_spa(currentTemp="98.00")).holding_water_temperature_from(
-        previous
+        previous.water_reading
     )
 
     assert (fresh.current_temp, fresh.current_temp_held) == (98.0, False)
 
 
 def test_nothing_to_hold_stays_unknown():
-    """After a restart there is no earlier reading to carry over."""
+    """With no earlier reading, saved or polled, there is nothing to carry over."""
     no_reading = SpaState.from_api(_spa(currentTemp="262.00"))
 
-    assert no_reading.holding_water_temperature_from(None).current_temp is None
-    assert (
-        no_reading.holding_water_temperature_from(no_reading).current_temp_held
-        is False
+    assert no_reading.water_reading is None
+    held = no_reading.holding_water_temperature_from(None)
+    assert (held.current_temp, held.current_temp_held) == (None, False)
+
+
+def test_water_reading_survives_a_save_and_load():
+    """What is saved before a restart is held exactly as it was after it."""
+    earlier = datetime.now(timezone.utc) - timedelta(hours=3)
+    before = SpaState.from_api(
+        _spa(currentTemp="96.00", uplinkTimestamp=earlier.isoformat())
+    ).water_reading
+
+    loaded = WaterReading.from_dict(before.as_dict())
+    held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        loaded
     )
+
+    assert loaded == before
+    assert (held.current_temp, held.current_temp_held) == (96.0, True)
+    assert held.current_temp_at == earlier
+
+
+def test_a_held_reading_is_saved_as_the_original_measurement():
+    """Holding over a restart must not make an old reading look fresh."""
+    earlier = datetime.now(timezone.utc) - timedelta(hours=3)
+    measured = WaterReading(96.0, earlier, True)
+
+    held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        measured
+    )
+
+    assert held.water_reading == measured
+
+
+def test_a_saved_reading_in_the_other_unit_is_not_held():
+    """A Celsius reading must never be shown as Fahrenheit, or the reverse."""
+    celsius = WaterReading(38.0, None, False)
+
+    held = SpaState.from_api(_spa(currentTemp="262.00")).holding_water_temperature_from(
+        celsius
+    )
+
+    assert (held.current_temp, held.current_temp_held) == (None, False)
+
+
+def test_an_unusable_saved_reading_is_ignored():
+    """A missing, damaged or out-of-range file leaves the reading unknown."""
+    assert WaterReading.from_dict(None) is None
+    assert WaterReading.from_dict([]) is None
+    assert WaterReading.from_dict({"temperature": 96.0}) is None
+    assert WaterReading.from_dict({"temperature": "warm", "fahrenheit": True}) is None
+    assert WaterReading.from_dict({"temperature": 262.0, "fahrenheit": True}) is None
+    assert WaterReading.from_dict({"temperature": 96.0, "fahrenheit": "yes"}) is None
+
+
+def test_a_saved_reading_without_a_time_is_still_held():
+    """A reading whose time was never known, or cannot be read, keeps its value."""
+    assert WaterReading.from_dict(
+        {"temperature": 96.0, "measured_at": None, "fahrenheit": True}
+    ) == WaterReading(96.0, None, True)
+    assert WaterReading.from_dict(
+        {"temperature": 96.0, "measured_at": "not a time", "fahrenheit": True}
+    ) == WaterReading(96.0, None, True)
 
 
 def test_no_reading_sentinel_is_caught_in_celsius_data_too():
